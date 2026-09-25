@@ -18,6 +18,9 @@
     "mimeType": "text/markdown"
   },
   "alertStrategy": {
-    "autoClose": "1800s"
+    "autoClose": "1800s",
+    "notificationRateLimit": {
+      "period": "3600s"
+    }
   }
 }
