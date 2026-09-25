@@ -1,0 +1,24 @@
+{
+  "displayName": "ElderGuard: calls accepted but none reached live in 24 h",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "inbound_accepted >= 3 and media_started == 0 over 24 h",
+      "conditionMonitoringQueryLanguage": {
+        "duration": "0s",
+        "query": "{ fetch cloud_run_revision :: logging.googleapis.com/user/elderguard_inbound_accepted | align delta(24h) | group_by [], sum(val()) ; fetch cloud_run_revision :: logging.googleapis.com/user/elderguard_media_started | align delta(24h) | group_by [], sum(val()) } | join | value [accepted: val(0), started: val(1)] | condition accepted >= 3 && started == 0"
+      }
+    }
+  ],
+  "notificationChannels": [
+    "__CHANNEL__"
+  ],
+  "enabled": true,
+  "documentation": {
+    "content": "The Guardian Line answered calls but no media stream ever started. The WebSocket URL, token, or PUBLIC_BASE_URL is probably wrong after a deploy.",
+    "mimeType": "text/markdown"
+  },
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

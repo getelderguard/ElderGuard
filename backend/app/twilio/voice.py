@@ -38,7 +38,7 @@ def _urls(request: Request) -> dict[str, str]:
 async def inbound(request: Request, form: dict[str, str] = Depends(twilio_form)) -> Response:
     state = request.app.state
     settings = state.settings
-    limits = state.provider_config.limits
+    limits = (await state.config_service.get_config()).limits
     now = time.time()
     call_sid = form.get("CallSid", "")
 
@@ -112,7 +112,7 @@ async def inbound(request: Request, form: dict[str, str] = Depends(twilio_form))
 @router.post("/reconnect")
 async def reconnect(request: Request, form: dict[str, str] = Depends(twilio_form)) -> Response:
     state = request.app.state
-    limits = state.provider_config.limits
+    limits = (await state.config_service.get_config()).limits
     call_sid = form.get("CallSid", "")
     session = await state.session_store.get_by_call_sid(call_sid)
     if session is None or session.state not in {SessionState.LIVE, SessionState.RECONNECTING}:
@@ -154,10 +154,14 @@ async def status(request: Request, form: dict[str, str] = Depends(twilio_form)) 
         duration = float(form.get("CallDuration", "0") or 0)
         if not duration and session.live_at:
             duration = now - session.live_at
-        await state.session_store.update(
+        session = await state.session_store.update(
             session.id, state=SessionState.ENDED, ended_at=now, duration_s=duration
         )
         log.info("call_ended", session_id=session.id, call_status=call_status, duration_s=duration)
+        if session.max_score >= 7 and session.initiated_by == InitiatedBy.APP:
+            account = await state.accounts.get(session.account_id)
+            if account is not None:
+                await state.notify.session_ended_with_stop(session, account)
     return Response(status_code=204)
 
 
@@ -178,4 +182,17 @@ async def stream_status(request: Request, form: dict[str, str] = Depends(twilio_
             funnel["stream_error_at"] = time.time()
         await state.session_store.update(session.id, funnel=funnel)
     log.info("stream_status", event=event, error=form.get("StreamError"))
+    return Response(status_code=204)
+
+
+@router.post("/status-trigger")
+async def usage_trigger(request: Request, form: dict[str, str] = Depends(twilio_form)) -> Response:
+    """Twilio usage triggers (daily minutes, monthly spend) post here. Logged for the alert."""
+    log.warning(
+        "twilio_usage_trigger",
+        category=form.get("UsageCategory"),
+        current=form.get("CurrentValue"),
+        threshold=form.get("TriggerValue"),
+        recurring=form.get("Recurring"),
+    )
     return Response(status_code=204)

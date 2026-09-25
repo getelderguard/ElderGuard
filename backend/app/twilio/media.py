@@ -39,6 +39,7 @@ class LiveCall:
         self.last_final_at: float | None = None
         self.no_audio_flagged = False
         self.frames = 0
+        self.account = None
 
     async def handle(self, msg: dict) -> bool:
         """Returns False when the stream should close."""
@@ -103,7 +104,8 @@ class LiveCall:
             return False
 
         now = time.time()
-        account = await self.app_state.accounts.by_phone_hash(session.phone_hash)
+        account = await self.app_state.accounts.get(session.account_id)
+        self.account = account
         watch_list = account.watch_list if account else []
         policy = CadencePolicy().scaled(self.settings.scoring_speed_factor)
         self.scorer = RollingScorer(
@@ -122,6 +124,7 @@ class LiveCall:
             asyncio.create_task(self._consume_segments(), name=f"segments-{session_id}"),
             asyncio.create_task(self.scorer.run(), name=f"scorer-{session_id}"),
             asyncio.create_task(self._no_audio_watchdog(), name=f"watchdog-{session_id}"),
+            asyncio.create_task(self._stall_watchdog(), name=f"stall-{session_id}"),
         ]
         log.info(
             "media_started",
@@ -157,7 +160,7 @@ class LiveCall:
             return
 
     async def _no_audio_watchdog(self) -> None:
-        timeout = self.app_state.provider_config.limits.no_audio_timeout_seconds
+        timeout = self.app_state.config_service.config.limits.no_audio_timeout_seconds
         timeout *= max(self.settings.scoring_speed_factor, 0.001)
         try:
             await asyncio.sleep(timeout)
@@ -165,6 +168,31 @@ class LiveCall:
                 self.no_audio_flagged = True
                 await self._set_tier(Tier.NO_AUDIO)
                 log.info("no_audio", session_id=self.session.id)
+                if self.account is not None:
+                    await self.app_state.notify.no_audio(self.session, self.account)
+        except asyncio.CancelledError:
+            return
+
+    async def _stall_watchdog(self) -> None:
+        """Transcript arriving but no score for 60 s means a provider hangs. Alerts count it."""
+        factor = max(self.settings.scoring_speed_factor, 0.001)
+        stall_after = 60.0 * factor
+        stalled = False
+        try:
+            while True:
+                await asyncio.sleep(10.0 * factor)
+                if self.scorer is None or self.session is None or self.last_final_at is None:
+                    continue
+                last = self.scorer.last_scored_at or self.scorer.started_at
+                now = self.scorer.clock.now()
+                if now - last > stall_after and self.scorer.last_final_at > last:
+                    if not stalled:
+                        stalled = True
+                        log.warning(
+                            "scoring_stalled", session_id=self.session.id, seconds=now - last
+                        )
+                else:
+                    stalled = False
         except asyncio.CancelledError:
             return
 
@@ -182,6 +210,7 @@ class LiveCall:
             if self.no_audio_flagged and update.tier == Tier.LISTENING
             else update.tier
         )
+        old_tier = self.session.tier
         self.session = await store.update(
             self.session.id,
             tier=tier,
@@ -191,6 +220,18 @@ class LiveCall:
             reason=update.reason or self.session.reason,
             max_score=update.max_score,
         )
+        if tier != old_tier and self.account is not None:
+            flags = self.app_state.config_service.flags
+            try:
+                await self.app_state.notify.tier_changed(
+                    self.session,
+                    self.account,
+                    old_tier,
+                    tier,
+                    guardian_alerts=flags.guardian_alerts,
+                )
+            except Exception as e:  # noqa: BLE001 - a push failure must never stop scoring
+                log.warning("notify_failed", error=type(e).__name__)
         if update.result is not None:
             await self.app_state.usage_sink.emit(
                 UsageEvent(

@@ -1,0 +1,74 @@
+rules_version = '2';
+
+// Deny by default. Clients read a narrow slice; every write except the device token goes
+// through the backend service account, which bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.uid != null;
+    }
+
+    function isSeniorOf(accountId) {
+      return signedIn() && request.auth.uid == accountId;
+    }
+
+    function accountDoc(accountId) {
+      return get(/databases/$(database)/documents/accounts/$(accountId)).data;
+    }
+
+    function isGuardianOfDoc(data) {
+      return signedIn()
+        && 'guardian_uids' in data
+        && data.guardian_uids is list
+        && request.auth.uid in data.guardian_uids;
+    }
+
+    // accounts/{id}: the senior (id == uid) and linked guardians may read. Nobody writes.
+    match /accounts/{accountId} {
+      allow read: if isSeniorOf(accountId) || isGuardianOfDoc(resource.data);
+      allow write: if false;
+    }
+
+    // sessions/{id}: readable by the senior and guardians of the owning account.
+    match /sessions/{sessionId} {
+      allow read: if signedIn()
+        && resource.data.account_id is string
+        && (
+          isSeniorOf(resource.data.account_id)
+          || isGuardianOfDoc(accountDoc(resource.data.account_id))
+        );
+      allow write: if false;
+    }
+
+    // devices/{uid}: the owner registers its own push token, schema-checked.
+    match /devices/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create, update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['fcm_token', 'platform', 'app_version', 'updated_at'])
+        && request.resource.data.keys().hasAll(['fcm_token', 'platform', 'app_version', 'updated_at'])
+        && request.resource.data.fcm_token is string
+        && request.resource.data.fcm_token.size() > 0
+        && request.resource.data.fcm_token.size() <= 512
+        && request.resource.data.platform in ['ios', 'android']
+        && request.resource.data.app_version is string
+        && request.resource.data.app_version.size() <= 32
+        && request.resource.data.updated_at == request.time;
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Server-only collections. Listed explicitly so a future edit cannot open them by accident.
+    match /phone_index/{doc} { allow read, write: if false; }
+    match /guardian_invites/{doc} { allow read, write: if false; }
+    match /usage_events/{doc} { allow read, write: if false; }
+    match /usage_monthly/{doc} { allow read, write: if false; }
+    match /config/{doc} { allow read, write: if false; }
+    match /config_history/{doc} { allow read, write: if false; }
+    match /show_checks/{doc} { allow read, write: if false; }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

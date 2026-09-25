@@ -74,9 +74,113 @@ class Session(BaseModel):
         }
 
 
+GUARDIAN_COOL_OFF_S = 24 * 3600
+INVITE_TTL_S = 7 * 86400
+SESSION_TTL_S = 30 * 86400
+CONSENT_VERSION = "2026-09-25"
+
+
+class Senior(BaseModel):
+    uid: str
+    display_name: str = ""
+    nickname: str = "Mom"
+    phone_last4: str = ""
+    consent_version: str = ""
+    consent_at: float | None = None
+    carrier_capability: dict[str, Any] = Field(default_factory=dict)
+    caller_id_visible: bool | None = None
+
+
+class Guardian(BaseModel):
+    uid: str
+    name: str
+    relationship: str = "family"
+    phone_last4: str = ""
+    linked_at: float = Field(default_factory=time.time)
+    active_at: float = Field(default_factory=time.time)
+
+    def is_active(self, now: float | None = None) -> bool:
+        return (now or time.time()) >= self.active_at
+
+
+class AccountSettings(BaseModel):
+    announcement: bool = True
+    spoken_takeover: bool = True
+    alert_guardian: bool = True
+
+
 class Account(BaseModel):
+    """One senior, their guardians, and their preferences. id == the senior's uid."""
+
     id: str
     phone_hash: str
-    senior_nickname: str = "Mom"
-    guardian_name: str = "your family"
+    senior: Senior
+    guardians: list[Guardian] = Field(default_factory=list)
+    guardian_uids: list[str] = Field(default_factory=list)
     watch_list: list[str] = Field(default_factory=list)
+    settings: AccountSettings = Field(default_factory=AccountSettings)
+    created_at: float = Field(default_factory=time.time)
+    updated_at: float = Field(default_factory=time.time)
+
+    @property
+    def senior_nickname(self) -> str:
+        return self.senior.nickname or "Mom"
+
+    @property
+    def guardian_name(self) -> str:
+        active = self.active_guardians()
+        return active[0].name if active else "your family"
+
+    def active_guardians(self, now: float | None = None) -> list[Guardian]:
+        return [g for g in self.guardians if g.is_active(now)]
+
+    def can_read(self, uid: str, now: float | None = None) -> bool:
+        if uid == self.senior.uid:
+            return True
+        return any(g.uid == uid and g.is_active(now) for g in self.guardians)
+
+    def public_view(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "senior": {
+                "uid": self.senior.uid,
+                "display_name": self.senior.display_name,
+                "nickname": self.senior.nickname,
+                "phone_last4": self.senior.phone_last4,
+                "consent_version": self.senior.consent_version,
+                "caller_id_visible": self.senior.caller_id_visible,
+            },
+            "guardians": [
+                {
+                    "uid": g.uid,
+                    "name": g.name,
+                    "relationship": g.relationship,
+                    "phone_last4": g.phone_last4,
+                    "active_at": g.active_at,
+                    "active": g.is_active(),
+                }
+                for g in self.guardians
+            ],
+            "watch_list": self.watch_list,
+            "settings": self.settings.model_dump(),
+        }
+
+
+class GuardianInvite(BaseModel):
+    id: str = Field(default_factory=lambda: "gi_" + secrets.token_urlsafe(9))
+    account_id: str
+    phone_hash: str
+    name: str
+    relationship: str = "family"
+    created_at: float = Field(default_factory=time.time)
+    expires_at: float = Field(default_factory=lambda: time.time() + INVITE_TTL_S)
+    claimed_at: float | None = None
+    claimed_uid: str | None = None
+
+
+class Device(BaseModel):
+    uid: str
+    fcm_token: str
+    platform: str = "ios"
+    app_version: str = ""
+    updated_at: float = Field(default_factory=time.time)

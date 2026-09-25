@@ -17,6 +17,10 @@ dependencies = [
   "structlog>=24.4",
   "slowapi>=0.1.9",
   "pyyaml>=6.0",
+  "google-cloud-firestore>=2.19",
+  "firebase-admin>=6.6",
+  "google-auth>=2.35",
+  "sentry-sdk[fastapi]>=2.19",
 ]
 
 [dependency-groups]

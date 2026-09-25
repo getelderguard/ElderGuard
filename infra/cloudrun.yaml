@@ -1,0 +1,122 @@
+# Cloud Run service spec for elderguard-api. Apply with:
+#   gcloud run services replace infra/cloudrun.yaml --region=REGION --project=PROJECT
+# deploy.yml substitutes REGION, PROJECT, and TAG before applying. No secret values live here;
+# every secret is mounted from Secret Manager by name.
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: elderguard-api
+  labels:
+    app: elderguard
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/launch-stage: GA
+spec:
+  template:
+    metadata:
+      labels:
+        app: elderguard
+      annotations:
+        # Request-based billing: CPU is only allocated while a request (or WebSocket) is open.
+        run.googleapis.com/cpu-throttling: "true"
+        run.googleapis.com/startup-cpu-boost: "true"
+        # One instance, always warm. Twilio's webhook timeout is 15 s; a cold Python start can miss it.
+        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/maxScale: "1"
+        # Live calls hold state in the process. Affinity keeps a reconnect on the same instance.
+        run.googleapis.com/sessionAffinity: "true"
+        run.googleapis.com/execution-environment: gen2
+    spec:
+      containerConcurrency: 80
+      # Cloud Run's ceiling. Sessions are capped at max_session_minutes (45) below this.
+      timeoutSeconds: 3600
+      serviceAccountName: elderguard-api@PROJECT.iam.gserviceaccount.com
+      containers:
+        - name: api
+          image: REGION-docker.pkg.dev/PROJECT/elderguard/api:TAG
+          ports:
+            - name: http1
+              containerPort: 8080
+          resources:
+            limits:
+              cpu: "1"
+              memory: 2Gi
+          env:
+            - name: ENV
+              value: prod
+            - name: LOG_LEVEL
+              value: INFO
+            - name: PUBLIC_BASE_URL
+              value: https://api.elderguard.org
+            - name: CORS_ORIGINS
+              value: ""
+            - name: GCP_PROJECT
+              value: PROJECT
+            - name: STORE
+              value: firestore
+            - name: AUTH_MODE
+              value: firebase
+            - name: NOTIFY
+              value: fcm
+            - name: SCHEDULER_SERVICE_ACCOUNT
+              value: elderguard-scheduler@PROJECT.iam.gserviceaccount.com
+            - name: CONFIG_CACHE_SECONDS
+              value: "30"
+            - name: TWILIO_ACCOUNT_SID
+              value: REPLACE_WITH_TWILIO_ACCOUNT_SID
+            - name: TWILIO_GUARDIAN_NUMBER
+              value: "+10000000000"
+            - name: FAKE_PROVIDERS
+              value: ""
+            - name: DEV_ALLOWED_PHONES
+              value: ""
+            - name: SCORING_SPEED_FACTOR
+              value: "1.0"
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: ANTHROPIC_API_KEY
+                  key: latest
+            - name: STT_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: STT_API_KEY
+                  key: latest
+            - name: TWILIO_AUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: TWILIO_AUTH_TOKEN
+                  key: latest
+            - name: PHONE_HASH_PEPPER
+              valueFrom:
+                secretKeyRef:
+                  name: PHONE_HASH_PEPPER
+                  key: latest
+            - name: STREAM_TOKEN_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: STREAM_TOKEN_SECRET
+                  key: latest
+            - name: SENTRY_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: SENTRY_DSN
+                  key: latest
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            timeoutSeconds: 3
+            failureThreshold: 15
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+  traffic:
+    - percent: 100
+      latestRevision: true

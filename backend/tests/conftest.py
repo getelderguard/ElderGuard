@@ -12,6 +12,11 @@ PUBLIC_BASE = "https://api.example.test"
 TWILIO_TOKEN = "test-twilio-auth-token"
 ENROLLED = "+14155550142"
 STRANGER = "+12125550199"
+SENIOR_UID = "dev-0142"  # InMemoryAccountRepo seeds uid "dev-" + last4 for DEV_ALLOWED_PHONES
+GUARDIAN_UID = "dev-guardian"
+SENIOR_HEADERS = {"X-Dev-Uid": SENIOR_UID, "X-Dev-Phone": ENROLLED}
+GUARDIAN_HEADERS = {"X-Dev-Uid": GUARDIAN_UID, "X-Dev-Phone": "+14155550177"}
+STAFF_HEADERS = {"X-Dev-Uid": "staff-1", "X-Dev-Phone": "+14155550188"}
 
 
 def make_settings(**overrides) -> Settings:
@@ -37,6 +42,9 @@ def settings() -> Settings:
 
 @pytest.fixture
 def app(settings):
+    from app.api.deps import limiter
+
+    limiter.reset()  # slowapi keeps counters in module state; tests must not share them
     return create_app(settings)
 
 
@@ -44,6 +52,10 @@ def app(settings):
 def client(app):
     with TestClient(app) as c:
         yield c
+
+
+def newest_session_id(client: TestClient) -> str:
+    return client.get("/v1/sessions", headers=SENIOR_HEADERS).json()[0]["id"]
 
 
 def signed_headers(path: str, params: dict[str, str]) -> dict[str, str]:

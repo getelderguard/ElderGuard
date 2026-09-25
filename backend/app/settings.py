@@ -28,6 +28,20 @@ class Settings(BaseSettings):
     public_base_url: str = "http://localhost:8000"
     cors_origins: str = ""
 
+    # GCP / Firebase project. Required for the firestore store, firebase auth, and fcm notify.
+    gcp_project: str = ""
+    # "memory" or "firestore"
+    store: str = "memory"
+    # "dev" accepts X-Dev-Uid / X-Dev-Phone headers (refused in prod); "firebase" verifies tokens.
+    auth_mode: str = "dev"
+    # "log" or "fcm"
+    notify: str = "log"
+    # Service-account email allowed to call /internal/* with a Google OIDC token. Empty = off.
+    scheduler_service_account: str = ""
+    # How long the Firestore config overlay (routes, limits, flags, kill switch) is cached.
+    config_cache_seconds: float = 30.0
+    sentry_dsn: SecretStr | None = None
+
     anthropic_api_key: SecretStr | None = None
     stt_api_key: SecretStr | None = None
 
@@ -68,6 +82,33 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.env.lower() == "prod"
+
+    @property
+    def use_firestore(self) -> bool:
+        return self.store.strip().lower() == "firestore"
+
+    @property
+    def use_firebase_auth(self) -> bool:
+        return self.auth_mode.strip().lower() == "firebase"
+
+    @property
+    def use_fcm(self) -> bool:
+        return self.notify.strip().lower() == "fcm"
+
+    def startup_problems(self) -> list[str]:
+        """Configuration combinations that must not start in prod."""
+        problems = [f"default secret {k}" for k in self.insecure_defaults_in_use()]
+        if self.is_prod:
+            if not self.use_firebase_auth:
+                problems.append("AUTH_MODE must be firebase in prod")
+            if not self.use_firestore:
+                problems.append("STORE must be firestore in prod")
+            if self.fakes_enabled:
+                problems.append("FAKE_PROVIDERS must be empty in prod")
+        needs_project = self.use_firestore or self.use_firebase_auth or self.use_fcm
+        if needs_project and not self.gcp_project:
+            problems.append("GCP_PROJECT is required for firestore, firebase auth, or fcm")
+        return problems
 
     def insecure_defaults_in_use(self) -> list[str]:
         problems: list[str] = []

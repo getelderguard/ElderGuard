@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests.conftest import ENROLLED, STRANGER, twilio_post
+from tests.conftest import ENROLLED, SENIOR_HEADERS, STRANGER, newest_session_id, twilio_post
 
 
 def _inbound(client, from_number: str, call_sid: str = "CA123", sign: bool = True):
@@ -34,25 +34,27 @@ def test_enrolled_number_gets_stream(client):
     assert "<Connect>" in r.text and "<Stream" in r.text
     assert 'name="sid"' in r.text and 'name="tok"' in r.text
     assert "<Redirect" in r.text
-    sessions = client.get("/v1/sessions").json()
+    sessions = client.get("/v1/sessions", headers=SENIOR_HEADERS).json()
     assert len(sessions) == 1
     assert sessions[0]["state"] == "ringing"
     assert sessions[0]["initiated_by"] == "line"
 
 
 def test_intent_promotes_to_app_session(client):
-    r = client.post("/v1/sessions/intent", headers={"X-Dev-Phone": ENROLLED})
-    assert r.status_code == 200
+    r = client.post("/v1/sessions/intent", headers=SENIOR_HEADERS)
+    assert r.status_code == 201
     sid = r.json()["session_id"]
     assert r.json()["guardian_line_number"] == "+14155550100"
     r2 = _inbound(client, ENROLLED, call_sid="CA2")
     assert f'value="{sid}"' in r2.text
-    s = client.get(f"/v1/sessions/{sid}").json()
+    s = client.get(f"/v1/sessions/{sid}", headers=SENIOR_HEADERS).json()
     assert s["state"] == "ringing" and s["initiated_by"] == "app"
 
 
 def test_intent_rejects_unenrolled(client):
-    assert client.post("/v1/sessions/intent", headers={"X-Dev-Phone": STRANGER}).status_code == 403
+    stranger = {"X-Dev-Uid": "dev-9999", "X-Dev-Phone": STRANGER}
+    assert client.post("/v1/sessions/intent", headers=stranger).status_code == 404
+    assert client.post("/v1/sessions/intent").status_code == 401
 
 
 def test_velocity_limit(client):
@@ -69,7 +71,7 @@ def test_status_ends_session(client):
         {"CallSid": "CA5", "CallStatus": "completed", "CallDuration": "42"},
     )
     assert r.status_code == 204
-    s = client.get("/v1/sessions").json()[-1]
+    s = client.get(f"/v1/sessions/{newest_session_id(client)}", headers=SENIOR_HEADERS).json()
     assert s["state"] == "ended"
 
 
@@ -86,3 +88,11 @@ def test_health_and_ready(client):
     ready = client.get("/ready").json()
     assert ready["fake_providers"] is True
     assert ready["scorer_routes"]
+
+
+def test_usage_trigger_is_signed_and_silent(client):
+    params = {"UsageCategory": "calls-inbound", "CurrentValue": "130", "TriggerValue": "120"}
+    assert (
+        twilio_post(client, "/twilio/voice/status-trigger", params, sign=False).status_code == 403
+    )
+    assert twilio_post(client, "/twilio/voice/status-trigger", params).status_code == 204

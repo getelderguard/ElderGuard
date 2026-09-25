@@ -1,0 +1,35 @@
+{
+  "displayName": "ElderGuard: many NO_AUDIO sessions in an hour",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "no_audio count > 3 per hour",
+      "conditionThreshold": {
+        "filter": "metric.type = \"logging.googleapis.com/user/elderguard_no_audio\" AND resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\"",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 3,
+        "duration": "0s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "3600s",
+            "perSeriesAligner": "ALIGN_SUM"
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "notificationChannels": [
+    "__CHANNEL__"
+  ],
+  "enabled": true,
+  "documentation": {
+    "content": "Seniors are dialling the line but no far-party speech arrives. Either Merge Calls is failing on a carrier or the media stream is broken. Compare with elderguard_media_started.",
+    "mimeType": "text/markdown"
+  },
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

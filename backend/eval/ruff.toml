@@ -1,0 +1,6 @@
+# Inherits the backend rules. Dialogue banks are long prose strings; wrapping them would make
+# the corpus harder to read and review, so line length is not enforced there.
+extend = "../pyproject.toml"
+
+[lint.per-file-ignores]
+"corpus/*.py" = ["E501"]

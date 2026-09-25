@@ -7,7 +7,7 @@ import time
 
 from app.security.stream_token import make_stream_token
 from app.telephony.codec import silence
-from tests.conftest import ENROLLED, twilio_post
+from tests.conftest import ENROLLED, SENIOR_HEADERS, newest_session_id, twilio_post
 
 FRAME = base64.b64encode(silence(0.02)).decode()  # one 20 ms mulaw frame
 
@@ -19,7 +19,7 @@ def _start_session(client, call_sid: str = "CA-ws-1") -> tuple[str, str]:
         {"From": ENROLLED, "To": "+14155550100", "CallSid": call_sid, "CallStatus": "in-progress"},
     )
     assert "<Connect>" in r.text
-    session_id = client.get("/v1/sessions").json()[-1]["id"]
+    session_id = newest_session_id(client)
     token = make_stream_token("test-stream-secret", session_id, call_sid)
     return session_id, token
 
@@ -66,13 +66,13 @@ def test_scripted_scam_moves_the_dial(client, app):
         _send_audio(ws, 35.0)  # the fake transcriber emits one scripted line per 5 s of audio
         deadline = time.time() + 3.0
         while time.time() < deadline:
-            s = client.get(f"/v1/sessions/{session_id}").json()
+            s = client.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()
             if s["max_score"] >= 7:
                 break
             time.sleep(0.05)
         ws.send_json({"event": "stop", "streamSid": "MZ-1", "stop": {"callSid": "CA-ws-1"}})
 
-    s = client.get(f"/v1/sessions/{session_id}").json()
+    s = client.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()
     assert s["state"] == "live"  # the status callback, not the stream, ends a session
     assert s["max_score"] >= 7
     assert s["tier"] in {"caution", "stop"}
@@ -95,7 +95,7 @@ def test_bad_token_never_goes_live(client, app):
             ws.receive_text()
         except Exception:  # noqa: BLE001 - the server closes the socket
             pass
-    s = client.get(f"/v1/sessions/{session_id}").json()
+    s = client.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()
     assert s["state"] == "ringing"
     assert session_id not in app.state.live_calls
 
@@ -108,11 +108,17 @@ def test_no_audio_flags_session(client, app):
         _send_audio(ws, 2.0)  # under the 5 s the fake transcriber needs for its first line
         deadline = time.time() + 3.0
         while time.time() < deadline:
-            if client.get(f"/v1/sessions/{session_id}").json()["tier"] == "no_audio":
+            if (
+                client.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()["tier"]
+                == "no_audio"
+            ):
                 break
             time.sleep(0.05)
         ws.send_json({"event": "stop", "streamSid": "MZ-1"})
-    assert client.get(f"/v1/sessions/{session_id}").json()["tier"] == "no_audio"
+    assert (
+        client.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()["tier"]
+        == "no_audio"
+    )
 
 
 def test_failing_providers_report_unknown(app, settings):
@@ -131,6 +137,6 @@ def test_failing_providers_report_unknown(app, settings):
                 ws.receive_text()
             except Exception:  # noqa: BLE001
                 pass
-        s = c.get(f"/v1/sessions/{session_id}").json()
+        s = c.get(f"/v1/sessions/{session_id}", headers=SENIOR_HEADERS).json()
         assert s["tier"] == "unknown"
         assert s["state"] == "ringing"

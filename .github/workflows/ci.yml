@@ -1,0 +1,106 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets-scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  backend:
+    name: backend (lint, tests, audit, eval gate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Install
+        run: uv sync --frozen
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format
+        run: uv run ruff format --check .
+      - name: Tests
+        env:
+          FAKE_PROVIDERS: "1"
+        run: uv run pytest -q
+      - name: pip-audit (fail on high)
+        run: |
+          uv export --frozen --no-dev --format requirements-txt --no-hashes > /tmp/req.txt
+          uvx pip-audit --requirement /tmp/req.txt --strict --progress-spinner off
+      - name: Eval gate
+        working-directory: ${{ github.workspace }}
+        env:
+          FAKE_PROVIDERS: "1"
+        continue-on-error: false
+        run: uv run --project backend python backend/eval/run.py --gate
+
+  firestore-rules:
+    name: firestore rules (emulator)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/rules-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Install firebase-tools and test deps
+        run: |
+          npm install --no-audit --no-fund
+          npm install -g firebase-tools
+      - name: Rules tests
+        run: npm test
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+      - name: Backend Firestore repository tests (same emulator)
+        working-directory: infra
+        run: |
+          (cd ../backend && uv sync --frozen)
+          firebase emulators:exec --only firestore --project demo-elderguard \
+            "cd ../backend && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCP_PROJECT=demo-elderguard uv run pytest -q tests/test_firestore_repos.py"
+
+  infra-lint:
+    name: infra (shellcheck, yaml/json syntax)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q shellcheck
+          shellcheck infra/bootstrap.sh infra/scripts/rotate_secret.sh
+      - name: bootstrap dry run
+        run: bash infra/bootstrap.sh --dry-run --project ci-demo --github-repo ${{ github.repository }} > /dev/null
+      - name: yaml/json syntax
+        run: |
+          python3 -c 'import yaml,sys; yaml.safe_load(open("infra/cloudrun.yaml"))'
+          python3 -c 'import json,glob; [json.load(open(f)) for f in glob.glob("infra/**/*.json", recursive=True)]'

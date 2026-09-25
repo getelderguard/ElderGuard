@@ -1,4 +1,4 @@
-"""Session persistence. In-memory for M0; the Firestore implementation replaces it in M1."""
+"""Session persistence. In-memory for dev and tests; app.persistence.firestore for prod."""
 
 from __future__ import annotations
 
@@ -28,7 +28,13 @@ class SessionStore(Protocol):
 
     async def expire_stale(self, now: float) -> int: ...
 
+    async def abandon_stale(self, now: float, max_age_s: float) -> int: ...
+
     async def recent(self, limit: int = 50) -> list[Session]: ...
+
+    async def recent_for_account(self, account_id: str, limit: int = 20) -> list[Session]: ...
+
+    async def delete_for_account(self, account_id: str) -> int: ...
 
 
 class InMemorySessionStore:
@@ -100,5 +106,31 @@ class InMemorySessionStore:
                 count += 1
         return count
 
+    async def abandon_stale(self, now: float, max_age_s: float) -> int:
+        count = 0
+        active = {SessionState.RINGING, SessionState.LIVE, SessionState.RECONNECTING}
+        for s in list(self._sessions.values()):
+            if s.state in active and s.created_at <= now - max_age_s:
+                duration = s.duration_s or ((now - s.live_at) if s.live_at else 0.0)
+                await self.update(
+                    s.id,
+                    state=SessionState.ENDED,
+                    ended_at=now,
+                    duration_s=duration,
+                    funnel={**s.funnel, "swept_at": now},
+                )
+                count += 1
+        return count
+
     async def recent(self, limit: int = 50) -> list[Session]:
         return list(self._sessions.values())[-limit:]
+
+    async def recent_for_account(self, account_id: str, limit: int = 20) -> list[Session]:
+        mine = [s for s in self._sessions.values() if s.account_id == account_id]
+        return list(reversed(mine))[:limit]
+
+    async def delete_for_account(self, account_id: str) -> int:
+        ids = [s.id for s in self._sessions.values() if s.account_id == account_id]
+        for sid in ids:
+            self._sessions.pop(sid, None)
+        return len(ids)

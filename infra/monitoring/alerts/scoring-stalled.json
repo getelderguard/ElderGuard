@@ -1,0 +1,23 @@
+{
+  "displayName": "ElderGuard: live session with no score for 60 s",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "scoring_stalled logged",
+      "conditionMatchedLog": {
+        "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"scoring_stalled\""
+      }
+    }
+  ],
+  "notificationChannels": [
+    "__CHANNEL__"
+  ],
+  "enabled": true,
+  "documentation": {
+    "content": "The media handler logged scoring_stalled: a live stream produced no score for 60 s. Usually the scorer provider is timing out.",
+    "mimeType": "text/markdown"
+  },
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

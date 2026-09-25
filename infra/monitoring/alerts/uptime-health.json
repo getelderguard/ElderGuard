@@ -1,0 +1,39 @@
+{
+  "displayName": "ElderGuard: /health uptime check failing",
+  "combiner": "OR",
+  "conditions": [
+    {
+      "displayName": "uptime failed in 2 of 3 regions",
+      "conditionThreshold": {
+        "filter": "metric.type = \"monitoring.googleapis.com/uptime_check/check_passed\" AND resource.type = \"uptime_url\" AND metric.labels.check_id = monitoring.regex.full_match(\"elderguard-health.*\")",
+        "comparison": "COMPARISON_GT",
+        "thresholdValue": 1,
+        "duration": "300s",
+        "aggregations": [
+          {
+            "alignmentPeriod": "300s",
+            "perSeriesAligner": "ALIGN_NEXT_OLDER",
+            "crossSeriesReducer": "REDUCE_COUNT_FALSE",
+            "groupByFields": [
+              "resource.label.*"
+            ]
+          }
+        ],
+        "trigger": {
+          "count": 1
+        }
+      }
+    }
+  ],
+  "notificationChannels": [
+    "__CHANNEL__"
+  ],
+  "enabled": true,
+  "documentation": {
+    "content": "Cloud Run is down or /health is failing. Twilio falls back to the TwiML Bin notice. See docs/RUNBOOK.md.",
+    "mimeType": "text/markdown"
+  },
+  "alertStrategy": {
+    "autoClose": "1800s"
+  }
+}

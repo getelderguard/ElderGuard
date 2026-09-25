@@ -21,11 +21,18 @@ class _Entry:
     is_configured: Configured
 
 
+ConfigGetter = Callable[[], ProviderConfig]
+
+
 @dataclass
 class ProviderRegistry:
     settings: Settings
-    config: ProviderConfig
+    config_getter: ConfigGetter
     _entries: dict[str, dict[str, _Entry]] = field(default_factory=dict)
+
+    @property
+    def config(self) -> ProviderConfig:
+        return self.config_getter()
 
     def register(
         self,
@@ -74,8 +81,10 @@ class ProviderRegistry:
         return entry.factory(self.settings, route)
 
 
-def build_registry(settings: Settings, config: ProviderConfig) -> ProviderRegistry:
-    registry = ProviderRegistry(settings=settings, config=config)
+def build_registry(settings: Settings, config: ProviderConfig | ConfigGetter) -> ProviderRegistry:
+    getter: ConfigGetter = config if callable(config) else (lambda c=config: c)  # type: ignore[assignment]
+    registry = ProviderRegistry(settings=settings, config_getter=getter)
+    config = getter()
     if settings.fakes_enabled:
         _register_fakes(registry, config, fail=settings.fakes_fail)
         return registry
@@ -116,7 +125,8 @@ def _register_fakes(registry: ProviderRegistry, config: ProviderConfig, fail: bo
         "tts": lambda s, r: FakeSynthesizer(),
         "message_analyzer": lambda s, r: FakeMessageAnalyzer(fail=fail),
     }
+    known = {"anthropic", "gemini", "deepgram", "google_stt", "assemblyai", "elevenlabs", "fake"}
     for capability in CAPABILITIES:
-        names = {r.provider for r in config.routing(capability).routes} | {"fake"}
+        names = {r.provider for r in config.routing(capability).routes} | known
         for name in names:
             registry.register(capability, name, factories[capability])

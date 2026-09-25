@@ -1,0 +1,26 @@
+{
+  "elderguard_twilio_5xx": {
+    "description": "Twilio webhook responses >= 500",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND httpRequest.requestUrl : \"/twilio/\" AND httpRequest.status >= 500"
+  },
+  "elderguard_no_audio": {
+    "description": "Sessions flagged NO_AUDIO",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"no_audio\""
+  },
+  "elderguard_media_started": {
+    "description": "Media streams that reached live",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"media_started\""
+  },
+  "elderguard_inbound_accepted": {
+    "description": "Guardian Line calls accepted",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"inbound_accepted\""
+  },
+  "elderguard_scorer_failures": {
+    "description": "Scorer provider failures",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"scorer_failed\""
+  },
+  "elderguard_scores": {
+    "description": "Scores published",
+    "filter": "resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\" AND jsonPayload.event = \"score\""
+  }
+}
