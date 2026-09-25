@@ -1,0 +1,53 @@
+[project]
+name = "elderguard-backend"
+version = "0.1.0"
+description = "ElderGuard Guardian Line service: Twilio media streams, live scam scoring, pluggable AI providers"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Apache-2.0" }
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.5",
+  "python-multipart>=0.0.12",
+  "anthropic>=1.0",
+  "twilio>=9.3",
+  "websockets>=13",
+  "structlog>=24.4",
+  "slowapi>=0.1.9",
+  "pyyaml>=6.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest>=8.3",
+  "pytest-asyncio>=0.24",
+  "httpx>=0.27",
+  "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]  # Depends() in defaults is the FastAPI idiom
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["E501"]
+"app/providers/fake.py" = ["E501"]
+"app/scoring/tripwire.py" = ["E501"]
+"app/scoring/prompts.py" = ["E501"]

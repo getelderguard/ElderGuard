@@ -1,0 +1,5 @@
+# Feature flags read by backend and app. Firestore config/flags overlays this in production.
+announcement: true
+takeover: true
+guardian_alerts: true
+show_me: true

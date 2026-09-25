@@ -1,13 +1,12 @@
 {
-  "name": "elderguard-frontend",
+  "name": "elderguard-prototype",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "preview": "vite preview",
-    "deploy": "wrangler pages deploy dist --project-name elderguard"
+    "preview": "vite preview"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -18,7 +17,6 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.6.3",
-    "vite": "^5.4.11",
-    "wrangler": "^3.90.0"
+    "vite": "^5.4.11"
   }
 }

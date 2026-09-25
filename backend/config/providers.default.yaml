@@ -1,0 +1,53 @@
+# Provider routing defaults. Firestore config/providers overlays this in production.
+# Weights are honored today; launch runs one primary route per capability plus a fallback.
+version: 1
+updated_by: seed
+capabilities:
+  scorer:
+    routes:
+      - provider: anthropic
+        model: claude-sonnet-5
+        weight: 100
+        params: { effort: low, max_tokens: 400 }
+      - provider: anthropic
+        model: claude-opus-5-5
+        weight: 0
+        params: { effort: low, max_tokens: 400 }
+      - provider: gemini
+        model: gemini-flash-latest
+        weight: 0
+    fallback_order: [gemini]
+  transcriber:
+    routes:
+      - provider: deepgram
+        model: nova-3
+        weight: 100
+        params: { language: en-US, endpointing: 300 }
+      - provider: google_stt
+        model: chirp_3
+        weight: 0
+    fallback_order: [google_stt]
+  tts:
+    routes:
+      - provider: elevenlabs
+        model: eleven_flash_v2_5
+        weight: 100
+  message_analyzer:
+    routes:
+      - provider: anthropic
+        model: claude-sonnet-5
+        weight: 100
+      - provider: gemini
+        model: gemini-flash-latest
+        weight: 0
+    fallback_order: [gemini]
+limits:
+  max_session_minutes: 45
+  daily_minutes_per_account: 120
+  line_initiated_daily_minutes: 15
+  intent_ttl_seconds: 60
+  no_audio_timeout_seconds: 20
+  max_reconnect_attempts: 3
+  velocity_calls: 3
+  velocity_window_seconds: 600
+  kill_switch: false

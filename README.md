@@ -2,148 +2,92 @@
 
 **A scam-call guardian for the people scammers target most.**
 
-Elder fraud is a multi-billion-dollar problem, and the classic playbook — fake IRS agents, "grandchild in trouble" calls, gift-card demands, tech-support takeovers — works because it isolates the victim in the moment. ElderGuard puts a trusted family member's presence *into* that moment: it watches a live phone call, scores it for scam patterns with Claude, and speaks to Mom in the voice of someone she already trusts.
+Elder fraud is a multi-billion-dollar problem, and the classic playbook works because it isolates the victim in the moment: fake Medicare agents, "your grandson is in jail," gift-card demands, remote-access "tech support." ElderGuard puts a trusted family member's presence into that moment. During a call, the senior taps one button, and a guardian line listens alongside them, scores the call for scam patterns with an LLM, and speaks up in the family member's own recorded voice when it is time to hang up.
 
-> **We guard elders, so we guard ourselves.** A tool that protects vulnerable people can't ship its own attack surface — every change here gets a security review before a feature review. See [Security posture](#security-posture).
+ElderGuard is free for seniors and their families. It is built in the open so that any organization can run its own instance, and so that AI and telephony providers can sponsor it directly.
 
----
+> **We guard elders, so we guard ourselves.** A tool that protects vulnerable people cannot ship its own attack surface. Every change here gets a security review before a feature review. See [CLAUDE.md](CLAUDE.md) for the binding policy.
 
-## What it does
+## How it works
 
-ElderGuard has two protective modes, both framed as a letter from a real family member (in the prototype, "Jarmar" protecting "Mom"):
+Neither iOS nor Android lets a store app hear a regular phone call, so ElderGuard does not try. Instead it owns a phone number, the **Guardian Line**.
 
-**🛡 Live call guardian.** During a phone call, the transcript is streamed to an analysis service that scores it 0–10 against known scam patterns (government impersonation, payment-by-gift-card, urgency and isolation tactics, info fishing, and more). The UI escalates with the score:
+1. A call comes in. The senior taps **Check this call** in the app, or taps the ElderGuard contact from the native call screen.
+2. Their phone dials the Guardian Line and they tap the native **Merge Calls** button. Carrier three-way calling now carries both voices to our line.
+3. The backend streams the audio to a transcription provider, scores the rolling transcript every few seconds, and publishes a tier: **Listening**, **Caution**, or **Stop**. There is deliberately no "safe" tier while a call is live.
+4. On Stop, the app vibrates and shows guidance in the guardian's words, and the line can play the guardian's recorded voice into the call.
+5. A short notice that the call is protected plays once the merge completes. Scammers tend to hang up on monitored calls. Real callers do not mind.
 
-| Score | State | What Mom sees |
-|-------|-------|---------------|
-| 0–3 | Clear | Quiet reassurance — the call looks normal |
-| 4–6 | Caution | A visible warning with the specific red flags, in plain language |
-| 7–10 | Takeover | "End the call now" — with guidance written in her family member's voice |
+Outside of calls, **Show Me** lets the senior photograph, paste, or describe a suspicious message and get a plain-language verdict.
 
-There are also honest failure states — *checking*, *no voice detected*, and *false alarm* — because a guardian that pretends to be certain is itself a hazard.
+## Status
 
-**✉️ "Show Me" message check.** Outside of calls, Mom can show ElderGuard a suspicious text, email, or voicemail and answer two short questions. She gets one of three verdicts — *looks OK*, *be careful*, or *don't respond* — written conservatively and in familiar language, never in scammer-speak.
+| Piece | State |
+|---|---|
+| Backend: Guardian Line webhooks, media stream, rolling scorer, provider layer, fakes, tests | Built (M0). Not yet exercised on a real carrier call. See [docs/M0-REAL-CALL.md](docs/M0-REAL-CALL.md). |
+| GCP deploy, Firebase auth, Firestore, alerts, cost guardrails | M1, next |
+| Expo mobile app (iOS and Android) | M2 |
+| Spoken takeover in the guardian's voice | M3 |
+| Show Me with real inputs | M4 |
+| Store submission, elderguard.org, fork guide | M5 |
+
+The original 19-screen web click-through lives in [prototype/](prototype/) as a visual reference until the mobile app covers every screen.
 
 ## Architecture
 
 ```
-┌─────────────────────────────┐         ┌──────────────────────────────┐
-│  Frontend                   │  HTTPS  │  Backend                     │
-│  Vite + React + TypeScript  │ ──────► │  FastAPI (Python)            │
-│  Cloudflare Pages           │         │  POST /analyze               │
-│                             │         │  GET  /health                │
-│  • 19 hi-fi screens, 4 flows│         │        │                     │
-│  • Custom design system     │         │        ▼                     │
-│  • State-machine navigator  │         │  Anthropic Claude            │
-│                             │         │  (scam-pattern scoring,      │
-└─────────────────────────────┘         │   strict JSON contract)      │
-                                        └──────────────────────────────┘
+ senior's phone ──(merge)──► Twilio Guardian Line ──► Cloud Run: FastAPI
+                                                          │  Media Streams WebSocket
+                                                          │  streaming STT (Deepgram, pluggable)
+                                                          │  rolling LLM scoring (Claude, pluggable)
+                                                          ▼
+ Expo app ◄──── Firestore session doc (tier, dial) ◄───── session store
+           ◄──── FCM push on tier change
 ```
 
-### Backend — [`backend/`](backend/)
-
-A small, focused FastAPI service ([`main.py`](backend/main.py)):
-
-- **`POST /analyze`** takes `{ transcript, call_duration_seconds }` and returns a typed, bounded response:
-
-  ```json
-  {
-    "score": 8,
-    "reasoning": "Caller impersonates the IRS and demands gift cards under arrest threat.",
-    "red_flags": ["GOVERNMENT IMPERSONATION", "UNUSUAL PAYMENT", "URGENCY"],
-    "recommendation": "END CALL NOW"
-  }
-  ```
-
-- The scoring rubric and known-pattern taxonomy live in a single reviewable system prompt ([`prompts.py`](backend/prompts.py)). The model must return strict JSON; the recommendation tier (`SAFE` / `CAUTION` / `END CALL NOW`) is then **re-derived server-side from the numeric score**, so a manipulated or malformed model response can't hand the UI an inflated "all clear."
-- **Fails safe and conservative:** short/empty transcripts and analysis errors return a neutral result rather than crashing mid-call or fabricating a verdict.
-- Pydantic models validate every request and response at the boundary.
-
-### Frontend — [`frontend/`](frontend/)
-
-Vite + React + TypeScript, deployed to Cloudflare Pages. All **19 hi-fi screens across 4 flows** are implemented and wired into a real navigation state machine — plus a floating "Screens" dock for jumping to any state directly (useful for demos and design review):
-
-| Flow | Screens |
-|------|---------|
-| Onboarding | Splash + 4 setup steps — the *family member* configures the app on Mom's phone |
-| Home / Profile | Idle home ("Hi Mom — I've got your back") and profile |
-| Live call | Clear · Caution · Checking · Takeover · No-voice · False-alarm |
-| Show Me | Intake, 2 clarifying questions, and 3 verdict screens (OK / Care / No) |
-
-The UI is built on a small custom design system ([`src/design-system/`](frontend/src/design-system/)) — a **"warm letter" aesthetic**: cream paper, navy ink, brass accents, coral alerts, with primitives like `Letterhead`, `Signature`, `FromLine`, and `BrassDial`. The intent is deliberate: safety guidance lands better as a note from your son than as a red error dialog, and large type + high contrast + one-action screens are accessibility choices for elderly users, not styling ones.
-
-> **Current integration status:** the frontend presently stubs its backend calls — the call-state transitions and Show-Me verdict resolver are the marked integration points for wiring in `/analyze`. The backend is fully functional standalone. Honest status beats a rigged demo.
-
-## Design decisions worth noting
-
-- **The trusted-voice framing is the product.** Scam scripts work by manufacturing authority and urgency. ElderGuard counters with the one authority scammers can't fake — a named family member — and every screen is written in that person's voice.
-- **The AI is bounded, not chatty.** Claude never free-texts at the user mid-crisis. It returns a score, one sentence of reasoning, and an enumerated flag list; the app owns all user-facing language. An LLM output surfaced to a frightened 78-year-old is itself an attack surface, and it's treated like one.
-- **Conservative by default.** Every ambiguous path (short transcript, API failure, unclear answers) degrades toward calm, not alarm — and never toward "this call is safe, proceed" on the model's word alone.
-
-## Security posture
-
-This repo is public from day one and treats that as a design constraint, not a risk:
-
-- **No secrets in the repo, ever.** Config comes from a gitignored `.env`; [`.env.example`](.env.example) contains placeholders only. Commits are secret-scanned before they leave the machine.
-- **Least privilege.** Per-environment, single-project API tokens; input validation at every HTTP boundary; security headers (`X-Frame-Options: DENY`, `nosniff`, strict referrer policy) shipped via Cloudflare Pages [`_headers`](frontend/public/_headers).
-- **Threat-modeled as a product.** The core question asked of every feature: *what does an attacker who controls X get to do?* — where X includes the transcript, the prompt, and the model output. The full operating policy is in [`CLAUDE.md`](CLAUDE.md).
+- **Backend** ([backend/](backend/)): Python, FastAPI. `POST /twilio/voice/inbound` answers the line, rejects unknown or anonymous callers silently, and returns TwiML that streams audio to `WS /twilio/media`. A `<Redirect>` after the stream reconnects automatically if the backend blips. The scorer uses an evidence gate, adaptive cadence, a regex trip-wire, and hysteresis so a single hallucinated score cannot tell someone to hang up on their doctor. Provider failures produce `unknown`, never a safe-looking result.
+- **Providers** ([backend/app/providers/](backend/app/providers/)): four protocols (scorer, streaming transcriber, voice synthesizer, message analyzer), a config-driven registry, per-call usage and cost events. `FAKE_PROVIDERS=1` runs the whole system with no credentials.
+- **Mobile**: Expo / React Native, one codebase for both stores. The warm-letter design system (cream paper, navy ink, brass dial) carries over from the prototype.
+- **Infra**: GCP, kept small. Cloud Run at one instance, Firestore, Firebase Auth by phone number, Cloud Messaging, Secret Manager. Budget alert wired to a kill switch. Provisioned by a documented bootstrap script rather than Terraform.
 
 ## Running it yourself
 
-ElderGuard is fork-ready: everything you need is your own free-tier accounts. No private registries, no "ask the maintainer for access."
+Everything a forker needs is their own free-tier or pay-as-you-go accounts. No private registries, no "ask the maintainer."
 
-**You'll provision:** an [Anthropic API key](https://console.anthropic.com/settings/keys), and (for hosting only) a Cloudflare account.
+**You provision:** a GCP project with billing, a Firebase project with phone sign-in, a Twilio account and one local number, an Anthropic API key, a Deepgram API key (or another supported transcriber), and, for hosting only, a domain. Apple Developer and Google Play accounts for store builds.
 
-### Backend
+### Backend, locally, with no credentials
 
 ```bash
 cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp ../.env.example ../.env   # then put your real ANTHROPIC_API_KEY in .env
-uvicorn main:app --reload
+uv sync
+FAKE_PROVIDERS=1 uv run uvicorn app.main:create_app --factory --reload
+curl -s localhost:8000/ready
+uv run pytest
 ```
 
-Smoke test:
+### Backend against real providers and a real phone
 
-```bash
-curl -s localhost:8000/health
-curl -s localhost:8000/analyze -X POST -H 'Content-Type: application/json' \
-  -d '{"transcript": "This is the IRS. You owe back taxes. Buy Apple gift cards in the next hour or a warrant is issued. Do not tell your family."}'
-```
+Follow [docs/M0-REAL-CALL.md](docs/M0-REAL-CALL.md). Secrets go in a gitignored `.env` copied from [.env.example](.env.example).
 
-### Frontend
+## Security posture
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+- No secrets in the repo. Placeholders only in `.env.example`. Commits are secret-scanned before they leave the machine.
+- Every Twilio webhook validates the request signature against the configured public URL. The media socket requires a short-lived token bound to the session and call.
+- Phone numbers are stored only as a peppered hash. No transcripts or call audio are stored. Logs redact transcript and phone fields.
+- The LLM returns a bounded score and enumerated flags; the server derives the tier after clamping. Anything in a call that addresses ElderGuard or claims the call is safe is itself a red flag.
+- Guardians link only from their own device with a cool-off, and guidance uses fixed templates, so a scammer on the line cannot make himself the trusted voice.
+- Live listening is interception under all-party-consent laws in some states. The monitoring notice is on by default and a consent screen is required. Counsel reviews before any user beyond the maintainer.
 
-Deployment to Cloudflare Pages (Wrangler or Git-connected) is documented in [`frontend/README.md`](frontend/README.md).
+The full threat model and data-retention policy land in `docs/` during M1.
 
 ## Roadmap
 
-- Wire the frontend's call-state machine and Show-Me resolver to the live `/analyze` endpoint
-- Real-time audio → transcript ingestion (streaming STT) for the live-call flow
-- Voice responses in the trusted contact's voice (ElevenLabs)
-- Verifiable trusted-contact identity (anyone who can spoof the family member can drive Mom's trust — this is the highest-value target in the threat model)
-- Backend hosting on a managed runtime with built-in secret management; CORS allow-list + rate limiting before public traffic
-- Encrypted-at-rest, minimum-retention handling for any stored audio (voice is biometric data)
+Automatic merge on Android via the default-phone-app role; number forwarding for landlines and flip phones; a Bluetooth companion for homes that want no phone-plan changes; weighted routing across sponsoring AI providers with a usage dashboard for grant reporting.
 
-## Project layout
+## License
 
-```
-backend/            FastAPI scam-analysis service (Claude-powered)
-  main.py           API: /health, /analyze
-  prompts.py        Scoring rubric + scam-pattern taxonomy (single reviewable prompt)
-frontend/           Vite + React + TS — 19 screens, 4 flows
-  src/design-system/  Warm-letter primitives (Phone, Letterhead, BrassDial, …)
-  src/screens/        onboarding · home · call · show
-  src/navigator/      State-machine navigation + screen-jump dock
-.env.example        Placeholder env template (never real values)
-CLAUDE.md           Binding security-first operating policy for this repo
-```
+To be chosen before the first deploy: Apache-2.0 is recommended.
 
 ---
 

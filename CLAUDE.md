@@ -72,11 +72,24 @@ When proposing features, name the failure mode. "What does an attacker who contr
 
 ## Project layout
 
-- [backend/](backend/) — Python service (Anthropic-powered scam analysis). Reads secrets from `.env`.
-- [frontend/](frontend/) — Vite + React + TS. Hosted on Cloudflare Pages (see [frontend/README.md](frontend/README.md)).
+- [backend/](backend/) — Python FastAPI service: Guardian Line voice webhooks, Twilio media-stream WebSocket, rolling scam scoring, pluggable AI providers. Reads secrets from `.env` locally and Secret Manager in prod.
+- [mobile/](mobile/) — Expo / React Native app for iOS and Android (from M2).
+- [prototype/](prototype/) — the original Vite/React click-through, frozen as a visual reference. Not deployed, not maintained. Deleted once every screen exists in `mobile/`.
+- [infra/](infra/) — GCP bootstrap script, Cloud Run service spec, Firestore rules, Twilio setup (from M1).
+- [docs/](docs/) — architecture, threat model, data retention, legal notes, fork guide, runbook.
 - [.env.example](.env.example) — placeholder env template. **Never** contains real values.
 
 ## Hosting / infra choices on this project
 
-- **Frontend:** Cloudflare Pages (Jarmar is exploring Cloudflare; already familiar with Vercel).
-- **Backend:** Python (currently `backend/main.py`). Hosting target TBD — when chosen, default to managed runtime with secret-management built in.
+- **Platform:** GCP, lean. Cloud Run (request-based billing, min 1 / max 1 at launch), Secret Manager, Firebase Auth (phone), Firestore, Firebase Cloud Messaging, one private GCS bucket, Firebase Hosting for elderguard.org. No Terraform at this scale; `infra/bootstrap.sh` is the source of truth for provisioning.
+- **Telephony:** Twilio Guardian Line with Media Streams. Fallback TwiML plays a notice when the backend is down. Auto-recharge off so the prepaid balance is a hard cost cap.
+- **AI providers:** pluggable behind `backend/app/providers/`. Anthropic scores, Deepgram transcribes at launch, with fallbacks configured in `backend/config/providers.default.yaml`. `FAKE_PROVIDERS=1` runs everything with no credentials.
+- **Mobile:** Expo / React Native, one codebase, EAS builds.
+- **Cost posture:** self-funded until grants. Budget alert with a kill switch, Anthropic spend limit, STT quota, and per-account minute caps are part of the deploy, not optional extras.
+
+## Product constraints that are not derivable from code
+
+- iOS and Android do not let a store app hear a native cellular call. The live guardian works by the senior merging the call with the Guardian Line. Do not propose on-device listening.
+- There is no "safe" tier while a call is live. Tiers are Listening, Caution, Stop, plus Unknown and No-audio. Any fallback that would tell the senior a call is safe is a bug.
+- Guardians link from their own device only, with a cool-off, and guidance text comes from fixed templates. Free-text guidance from a guardian is a spoofing surface.
+- Live listening by a third party is interception in all-party-consent states. The monitoring announcement defaults on and a consent screen is required. Counsel reviews before any non-Jarmar user.
