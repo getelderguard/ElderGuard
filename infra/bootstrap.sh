@@ -58,6 +58,15 @@ done
 
 [[ -n "$PROJECT" ]] || { echo "--project is required" >&2; usage 1; }
 
+# Prerequisites: gcloud, firebase CLI, and the gcloud alpha component (monitoring channels/policies).
+for tool in gcloud firebase; do
+  command -v "$tool" >/dev/null || { echo "$tool is not installed" >&2; exit 1; }
+done
+if ! gcloud alpha --help >/dev/null 2>&1; then
+  echo "==> Installing the gcloud alpha component (needed for Cloud Monitoring commands)"
+  [[ "$DRY_RUN" -eq 1 ]] || gcloud components install alpha --quiet
+fi
+
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_SA="${SERVICE}@${PROJECT}.iam.gserviceaccount.com"
 SCHEDULER_SA="elderguard-scheduler@${PROJECT}.iam.gserviceaccount.com"
