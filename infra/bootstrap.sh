@@ -206,6 +206,14 @@ ensure_sa() {
     echo "   ${email} exists"
   else
     run gcloud iam service-accounts create "$name" --display-name="$display" --project="$PROJECT"
+    # A new service account is not visible to IAM bindings for a few seconds; wait for it.
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+      for _ in $(seq 1 12); do
+        gcloud iam service-accounts describe "$email" --project="$PROJECT" >/dev/null 2>&1 && break
+        sleep 5
+      done
+      sleep 5
+    fi
   fi
 }
 
