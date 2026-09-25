@@ -149,6 +149,13 @@ for spec in "sessions:expire_at" "usage_events:expire_at"; do
   fi
 done
 
+log "Add the project to Firebase (needed before the CLI can deploy rules)"
+if [[ "$DRY_RUN" -eq 0 ]] && firebase projects:list --json 2>/dev/null | grep -q "\"projectId\": *\"${PROJECT}\""; then
+  echo "   already a Firebase project"
+else
+  run firebase projects:addfirebase "$PROJECT" --non-interactive
+fi
+
 log "Firestore rules and indexes (firebase CLI)"
 run firebase deploy --only firestore:rules,firestore:indexes --project "$PROJECT" \
   --config "${HERE}/firebase.json" --non-interactive
