@@ -135,7 +135,19 @@ else
     --database='(default)' --location=nam5 --type=firestore-native \
     --enable-pitr --delete-protection --project="$PROJECT"
 fi
-run gcloud firestore databases update --database='(default)' --enable-pitr --project="$PROJECT"
+PITR="$(gcloud firestore databases describe --database='(default)' --project="$PROJECT" \
+  --format='value(pointInTimeRecoveryEnablement)' 2>/dev/null || true)"
+if [[ "$PITR" == "POINT_IN_TIME_RECOVERY_ENABLED" ]]; then
+  echo "   PITR already enabled"
+else
+  # A freshly created database rejects updates for a few seconds with ABORTED; retry.
+  for attempt in 1 2 3 4 5; do
+    if run gcloud firestore databases update --database='(default)' --enable-pitr --project="$PROJECT"; then
+      break
+    fi
+    echo "   update aborted (attempt $attempt), retrying in 10s"; sleep 10
+  done
+fi
 
 log "Firestore TTL policies"
 for spec in "sessions:expire_at" "usage_events:expire_at"; do
