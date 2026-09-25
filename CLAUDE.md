@@ -36,7 +36,7 @@ Stage **specific files by path**, never `git add .` or `git add -A`. Show Jarmar
 
 ### 3. Infrastructure gets least-privilege by default
 
-- Cloudflare/Wrangler tokens scoped to a single project, never account-wide unless required.
+- GCP service accounts and CI identities scoped to a single project with only the roles they use; never Owner or Editor. Same rule for any third-party token (Twilio, Cloudflare for the website repo).
 - API tokens (Anthropic, ElevenLabs, future providers) created per-environment (dev/prod), revocable, never shared between repos.
 - CORS allow-lists, not `*`. Auth required on any endpoint that returns user data or triggers side effects.
 - Rate limiting on any public endpoint, especially anything that triggers paid AI calls.
@@ -58,7 +58,7 @@ When proposing features, name the failure mode. "What does an attacker who contr
 ### 5. Open-source readiness is a security property
 
 - A `LICENSE` file at root (Jarmar picks: MIT or Apache-2) before public traffic.
-- README explains exactly what a fresh forker has to provision: their own Anthropic key, their own Cloudflare account, their own ElevenLabs key, etc. No "ask Jarmar for access" steps.
+- README explains exactly what a fresh forker has to provision: their own GCP and Firebase project, Twilio account, Anthropic key, transcription key, and later ElevenLabs key. No "ask Jarmar for access" steps.
 - No private registries, no proprietary fonts/assets requiring licenses, no copy-pasted code without attribution.
 - Issue templates and contribution docs eventually — but only when there's something for contributors to do.
 
@@ -76,12 +76,13 @@ When proposing features, name the failure mode. "What does an attacker who contr
 - [mobile/](mobile/) — Expo / React Native app for iOS and Android (from M2).
 - [prototype/](prototype/) — the original Vite/React click-through, frozen as a visual reference. Not deployed, not maintained. Deleted once every screen exists in `mobile/`.
 - [infra/](infra/) — GCP bootstrap script, Cloud Run service spec, Firestore rules, Twilio setup (from M1).
-- [docs/](docs/) — architecture, threat model, data retention, legal notes, fork guide, runbook.
+- [docs/](docs/) — architecture, threat model, data retention, legal notes, fork guide, runbook, and the policy text the website hosts.
+- **Website:** elderguard.org is built and hosted on Cloudflare from a separate repo (`todezwood/eldergaurd-website`). Nothing in this repo deploys it; this repo only drafts the privacy, terms, and data-deletion copy it needs.
 - [.env.example](.env.example) — placeholder env template. **Never** contains real values.
 
 ## Hosting / infra choices on this project
 
-- **Platform:** GCP, lean. Cloud Run (request-based billing, min 1 / max 1 at launch), Secret Manager, Firebase Auth (phone), Firestore, Firebase Cloud Messaging, one private GCS bucket, Firebase Hosting for elderguard.org. No Terraform at this scale; `infra/bootstrap.sh` is the source of truth for provisioning.
+- **Platform:** GCP, lean. Cloud Run (request-based billing, min 1 / max 1 at launch), Secret Manager, Firebase Auth (phone), Firestore, Firebase Cloud Messaging, one private GCS bucket. No Terraform at this scale; `infra/bootstrap.sh` is the source of truth for provisioning.
 - **Telephony:** Twilio Guardian Line with Media Streams. Fallback TwiML plays a notice when the backend is down. Auto-recharge off so the prepaid balance is a hard cost cap.
 - **AI providers:** pluggable behind `backend/app/providers/`. Anthropic scores, Deepgram transcribes at launch, with fallbacks configured in `backend/config/providers.default.yaml`. `FAKE_PROVIDERS=1` runs everything with no credentials.
 - **Mobile:** Expo / React Native, one codebase, EAS builds.
