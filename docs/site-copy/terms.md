@@ -56,7 +56,7 @@ We are a small project. We may change the Service, and we may have to end it if 
 
 ## The software is open source
 
-The ElderGuard software is published under an open-source licence so that others can run their own copy. These terms cover the Service we run at elderguard.org, not other copies run by other people.
+The ElderGuard software is published under an open-source licence so that others can run their own copy. These terms cover the Service we run at getelderguard.org, not other copies run by other people.
 
 ## Disclaimer and limitation of liability
 

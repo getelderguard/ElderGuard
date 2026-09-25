@@ -29,7 +29,7 @@ Outside of calls, **Show Me** lets the senior photograph, paste, or describe a s
 | Expo mobile app (iOS and Android) | M2 |
 | Spoken takeover in the guardian's voice | M3 |
 | Show Me with real inputs | M4 |
-| Store submission, elderguard.org, fork guide | M5 |
+| Store submission, getelderguard.org, fork guide | M5 |
 
 The original 19-screen web click-through lives in [prototype/](prototype/) as a visual reference until the mobile app covers every screen.
 

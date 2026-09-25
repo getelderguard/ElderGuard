@@ -94,7 +94,7 @@ Tracking: none. No third-party advertising SDKs. No data is shared with data bro
 | App info and performance: crash logs | Yes | Yes (Sentry) | No | No | Analytics |
 | Device or other IDs | Push token only | No | No | Yes | App functionality |
 
-Security practices: data encrypted in transit (TLS everywhere, including the Twilio media stream over wss); users can request deletion in-app and by email; data is not sold. Account-deletion URL: the data-deletion page on elderguard.org.
+Security practices: data encrypted in transit (TLS everywhere, including the Twilio media stream over wss); users can request deletion in-app and by email; data is not sold. Account-deletion URL: the data-deletion page on getelderguard.org.
 
 ## What a fork must configure
 

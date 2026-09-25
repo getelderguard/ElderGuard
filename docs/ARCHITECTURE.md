@@ -19,7 +19,7 @@ Status: M1 in progress. Sections marked *(pending spike)* are filled in from the
                                                          └─► Twilio number voice URL → fallback TwiML Bin
 ```
 
-One GCP project holds Cloud Run, Firestore (nam5), Firebase Auth (phone), FCM, Secret Manager, and one private GCS bucket. DNS and the public website are on Cloudflare in a separate repo. The API hostname (`api.elderguard.org`) is a Cloudflare DNS record pointing at the Cloud Run domain mapping; `infra/bootstrap.sh` prints the target instead of creating the record.
+One GCP project holds Cloud Run, Firestore (nam5), Firebase Auth (phone), FCM, Secret Manager, and one private GCS bucket. DNS and the public website are on Cloudflare in a separate repo. The API hostname (`api.getelderguard.org`) is a Cloudflare DNS record pointing at the Cloud Run domain mapping; `infra/bootstrap.sh` prints the target instead of creating the record.
 
 ## Environment variables
 

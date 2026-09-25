@@ -62,11 +62,11 @@ Nothing in this directory contains or reads a secret value.
    ```
 
 9. Re-run `bootstrap.sh` once so the scheduler jobs and uptime check point at the real service URL.
-10. Cloudflare DNS: `CNAME api.elderguard.org -> ghs.googlehosted.com`. Confirm with `gcloud beta run domain-mappings describe`.
+10. Cloudflare DNS: `CNAME api.getelderguard.org -> ghs.googlehosted.com`. Confirm with `gcloud beta run domain-mappings describe`.
 11. Twilio: turn auto-recharge off in the console, then:
 
     ```bash
-    python3 infra/scripts/twilio_setup.py --base-url https://api.elderguard.org
+    python3 infra/scripts/twilio_setup.py --base-url https://api.getelderguard.org
     ```
 
     Set `FALLBACK_TWIML_URL`, `TWILIO_ACCOUNT_SID`, `TWILIO_GUARDIAN_NUMBER` on the `budget-killswitch` function from its output.

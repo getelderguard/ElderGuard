@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Point the Guardian Line number at the backend and install the cost guardrails.
 
-  twilio_setup.py --base-url https://api.elderguard.org [--dry-run]
+  twilio_setup.py --base-url https://api.getelderguard.org [--dry-run]
   twilio_setup.py --base-url https://abc.ngrok.app --daily-minutes 60 --monthly-spend 50
 
 Reads TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_GUARDIAN_NUMBER from the environment

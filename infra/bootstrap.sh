@@ -19,7 +19,7 @@
 #   4. Apple: APNs key uploaded to Firebase Cloud Messaging.
 #   5. Anthropic console: organization spend limit (about $100 at launch) and 80% alert.
 #   6. Twilio console: auto-recharge OFF; then run infra/scripts/twilio_setup.py.
-#   7. Cloudflare DNS: CNAME api.elderguard.org -> the target printed at the end.
+#   7. Cloudflare DNS: CNAME api.getelderguard.org -> the target printed at the end.
 #   8. Secret versions: run the `gcloud secrets versions add` commands printed below, piping each
 #      value from a file or password manager. Never type a secret on the command line.
 #
@@ -35,7 +35,7 @@ ALERT_EMAIL=""
 GITHUB_REPO=""
 DRY_RUN=0
 SERVICE="elderguard-api"
-API_HOST="api.elderguard.org"
+API_HOST="api.getelderguard.org"
 
 usage() {
   sed -n '2,25p' "$0"

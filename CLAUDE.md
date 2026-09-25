@@ -77,7 +77,7 @@ When proposing features, name the failure mode. "What does an attacker who contr
 - [prototype/](prototype/) — the original Vite/React click-through, frozen as a visual reference. Not deployed, not maintained. Deleted once every screen exists in `mobile/`.
 - [infra/](infra/) — GCP bootstrap script, Cloud Run service spec, Firestore rules, Twilio setup (from M1).
 - [docs/](docs/) — architecture, threat model, data retention, legal notes, fork guide, runbook, and the policy text the website hosts.
-- **Website:** elderguard.org is built and hosted on Cloudflare from a separate repo (`todezwood/eldergaurd-website`). Nothing in this repo deploys it; this repo only drafts the privacy, terms, and data-deletion copy it needs.
+- **Website:** getelderguard.org is built and hosted on Cloudflare from a separate repo (`todezwood/elderguard-website`). Nothing in this repo deploys it; this repo only drafts the privacy, terms, and data-deletion copy it needs.
 - [.env.example](.env.example) — placeholder env template. **Never** contains real values.
 
 ## Hosting / infra choices on this project
