@@ -62,10 +62,12 @@ done
 for tool in gcloud firebase; do
   command -v "$tool" >/dev/null || { echo "$tool is not installed" >&2; exit 1; }
 done
-if ! gcloud alpha --help >/dev/null 2>&1; then
-  echo "==> Installing the gcloud alpha component (needed for Cloud Monitoring commands)"
-  [[ "$DRY_RUN" -eq 1 ]] || gcloud components install alpha --quiet
-fi
+for comp in alpha beta; do  # alpha: Cloud Monitoring commands; beta: Cloud Run domain mappings
+  if ! gcloud "$comp" --help >/dev/null 2>&1; then
+    echo "==> Installing the gcloud ${comp} component"
+    [[ "$DRY_RUN" -eq 1 ]] || gcloud components install "$comp" --quiet
+  fi
+done
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUNTIME_SA="${SERVICE}@${PROJECT}.iam.gserviceaccount.com"
@@ -528,6 +530,8 @@ fi
 log "Custom domain ${API_HOST}"
 if probe gcloud beta run domain-mappings describe --domain="$API_HOST" --region="$REGION" --project="$PROJECT"; then
   echo "   mapping exists"
+elif [[ "$SERVICE_URL" == *PLACEHOLDER* ]]; then
+  echo "   service not deployed yet; the mapping is created on the re-run after deploy.yml"
 else
   run gcloud beta run domain-mappings create --service="$SERVICE" --domain="$API_HOST" \
     --region="$REGION" --project="$PROJECT"
