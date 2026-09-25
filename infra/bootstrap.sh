@@ -72,6 +72,7 @@ RUNTIME_SA="${SERVICE}@${PROJECT}.iam.gserviceaccount.com"
 SCHEDULER_SA="elderguard-scheduler@${PROJECT}.iam.gserviceaccount.com"
 DEPLOY_SA="elderguard-deploy@${PROJECT}.iam.gserviceaccount.com"
 KILLSWITCH_SA="elderguard-killswitch@${PROJECT}.iam.gserviceaccount.com"
+BUILD_SA="elderguard-build@${PROJECT}.iam.gserviceaccount.com"
 EXPORT_BUCKET="gs://${PROJECT}-firestore-exports"
 VOICE_BUCKET="gs://${PROJECT}-voice-templates"
 AR_REPO="elderguard"
@@ -81,6 +82,12 @@ BUDGET_TOPIC="billing-budget"
 # helpers
 # ---------------------------------------------------------------------------------------------
 log() { printf '\n==> %s\n' "$*"; }
+
+# found: true when a list command prints anything (a filtered list exits 0 even when empty).
+found() {
+  [[ "$DRY_RUN" -eq 0 ]] || return 1
+  [[ -n "$("$@" 2>/dev/null)" ]]
+}
 
 # run: execute a command, or print it in dry-run mode. Every state-changing call goes through here.
 run() {
@@ -352,23 +359,28 @@ run gcloud logging buckets update _Default --location=global --retention-days=30
 log "Cloud Monitoring"
 CHANNEL_NAME=""
 if [[ -n "$ALERT_EMAIL" ]]; then
-  if [[ "$DRY_RUN" -eq 0 ]]; then
-    CHANNEL_NAME="$(gcloud alpha monitoring channels list --project="$PROJECT" \
-      --filter="type=email AND labels.email_address=${ALERT_EMAIL}" --format='value(name)' | head -n1 || true)"
-  fi
+  # Server-side filters on channel labels are unreliable; match the email locally.
+  find_channel() {
+    gcloud alpha monitoring channels list --project="$PROJECT" \
+      --format='value(name,type,labels.email_address)' 2>/dev/null \
+      | awk -v e="$ALERT_EMAIL" '$2=="email" && $3==e {print $1; exit}'
+  }
+  [[ "$DRY_RUN" -eq 1 ]] || CHANNEL_NAME="$(find_channel || true)"
   if [[ -z "$CHANNEL_NAME" ]]; then
     run gcloud alpha monitoring channels create --project="$PROJECT" \
       --display-name="ElderGuard operator" --type=email \
       --channel-labels="email_address=${ALERT_EMAIL}"
     CHANNEL_NAME="projects/${PROJECT}/notificationChannels/PLACEHOLDER"
+    [[ "$DRY_RUN" -eq 1 ]] || CHANNEL_NAME="$(find_channel || true)"
   fi
+  echo "   channel: ${CHANNEL_NAME}"
 else
   echo "   --alert-email not given; policies are created without a notification channel"
 fi
 
 log "Uptime check on /health from three regions"
 UPTIME_HOST="${SERVICE_URL#https://}"
-if probe gcloud monitoring uptime list-configs --project="$PROJECT" --format='value(name)' \
+if found gcloud monitoring uptime list-configs --project="$PROJECT" --format='value(name)' \
     --filter='displayName="ElderGuard /health"'; then
   echo "   uptime check exists"
 else
@@ -409,7 +421,7 @@ d.pop("notificationChannels", None)
 json.dump(d, open(p, "w"))
 PY
   fi
-  if probe gcloud alpha monitoring policies list --project="$PROJECT" --format='value(name)' \
+  if found gcloud alpha monitoring policies list --project="$PROJECT" --format='value(name)' \
       --filter="displayName=\"$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["displayName"])' "$rendered")\""; then
     echo "   policy ${name} exists (edit in console or delete to recreate)"
   else
@@ -430,7 +442,7 @@ fi
 
 if [[ -n "$BILLING_ACCOUNT" ]]; then
   log "Billing budget \$${BUDGET_USD}/month with 50/90/100% alerts"
-  if probe gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format='value(name)' \
+  if found gcloud billing budgets list --billing-account="$BILLING_ACCOUNT" --format='value(name)' \
       --filter='displayName="ElderGuard monthly"'; then
     echo "   budget exists"
   else
@@ -445,12 +457,29 @@ else
   echo "   --billing-account not given; skipping budget creation (topic is ready for it)"
 fi
 
+log "Build service account (${BUILD_SA})"
+# Org-owned projects no longer grant the Compute default account anything, so Cloud Build
+# would fail with a missing-permission error. A dedicated account with only the three
+# roles a build needs replaces it.
+ensure_sa "$BUILD_SA" "elderguard-build" "Cloud Build for functions"
+for role in roles/logging.logWriter roles/artifactregistry.writer roles/storage.objectViewer; do
+  run gcloud projects add-iam-policy-binding "$PROJECT" \
+    --member="serviceAccount:${BUILD_SA}" --role="$role" --condition=None --quiet
+done
+
 log "Deploy budget-killswitch function"
+SECRET_ARGS=(--set-secrets="TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN:latest")
+if ! found gcloud secrets versions list TWILIO_AUTH_TOKEN --project="$PROJECT" \
+    --filter="state=enabled" --format='value(name)'; then
+  echo "   TWILIO_AUTH_TOKEN has no version yet; deploying without it. Add the version, re-run bootstrap."
+  SECRET_ARGS=()
+fi
 run gcloud functions deploy budget-killswitch --gen2 --region="$REGION" --project="$PROJECT" \
   --runtime=python312 --source="${HERE}/functions/budget-killswitch" --entry-point=on_budget \
   --trigger-topic="$BUDGET_TOPIC" --service-account="$KILLSWITCH_SA" \
+  --build-service-account="projects/${PROJECT}/serviceAccounts/${BUILD_SA}" \
   --set-env-vars="GCP_PROJECT=${PROJECT},TWILIO_ACCOUNT_SID=REPLACE_ME,TWILIO_GUARDIAN_NUMBER=REPLACE_ME,FALLBACK_TWIML_URL=REPLACE_ME" \
-  --set-secrets="TWILIO_AUTH_TOKEN=TWILIO_AUTH_TOKEN:latest" \
+  "${SECRET_ARGS[@]}" \
   --memory=256Mi --max-instances=1 --no-allow-unauthenticated
 
 # ---------------------------------------------------------------------------------------------
