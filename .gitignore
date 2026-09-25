@@ -34,3 +34,7 @@ Thumbs.db
 
 # ─── Claude Code local state ──────────────────────────────
 .claude/settings.local.json
+
+# Firebase CLI debug output
+firebase-debug.log
+firebase-debug.*.log
