@@ -479,7 +479,7 @@ run gcloud functions deploy budget-killswitch --gen2 --region="$REGION" --projec
   --trigger-topic="$BUDGET_TOPIC" --service-account="$KILLSWITCH_SA" \
   --build-service-account="projects/${PROJECT}/serviceAccounts/${BUILD_SA}" \
   --set-env-vars="GCP_PROJECT=${PROJECT},TWILIO_ACCOUNT_SID=REPLACE_ME,TWILIO_GUARDIAN_NUMBER=REPLACE_ME,FALLBACK_TWIML_URL=REPLACE_ME" \
-  "${SECRET_ARGS[@]}" \
+  ${SECRET_ARGS[@]+"${SECRET_ARGS[@]}"} \
   --memory=256Mi --max-instances=1 --no-allow-unauthenticated
 
 # ---------------------------------------------------------------------------------------------
