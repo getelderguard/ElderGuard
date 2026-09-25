@@ -91,4 +91,4 @@ To be chosen before the first deploy: Apache-2.0 is recommended.
 
 ---
 
-Built by [Jarmar Ledesma](https://github.com/todezwood).
+Built by [Jarmar Ledesma](https://github.com/todezwood) under the [getelderguard](https://github.com/getelderguard) organization.

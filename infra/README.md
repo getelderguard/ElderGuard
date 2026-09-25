@@ -35,9 +35,9 @@ Nothing in this directory contains or reads a secret value.
 
    ```bash
    infra/bootstrap.sh --project PROJECT --billing-account XXXXXX-XXXXXX-XXXXXX \
-     --alert-email you@example.com --github-repo owner/ElderGaurd --dry-run
+     --alert-email you@example.com --github-repo getelderguard/ElderGuard --dry-run
    infra/bootstrap.sh --project PROJECT --billing-account XXXXXX-XXXXXX-XXXXXX \
-     --alert-email you@example.com --github-repo owner/ElderGaurd
+     --alert-email you@example.com --github-repo getelderguard/ElderGuard
    ```
 
 4. Add secret versions. Pipe from a file or a password manager; never type a value:
