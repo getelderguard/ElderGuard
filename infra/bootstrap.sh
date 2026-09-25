@@ -3,7 +3,7 @@
 #
 # Usage:
 #   infra/bootstrap.sh --project my-project [--region us-central1] [--billing-account XXXXXX-XXXXXX-XXXXXX]
-#                      [--budget-usd 150] [--alert-email you@example.com] [--github-repo owner/name]
+#                      [--budget-usd 50] [--alert-email you@example.com] [--github-repo owner/name]
 #                      [--dry-run]
 #
 # What it does (in order): enable APIs, Firestore (nam5, PITR, TTL, weekly export), runtime service
@@ -30,7 +30,7 @@ set -euo pipefail
 PROJECT=""
 REGION="us-central1"
 BILLING_ACCOUNT=""
-BUDGET_USD="150"
+BUDGET_USD="50"
 ALERT_EMAIL=""
 GITHUB_REPO=""
 DRY_RUN=0

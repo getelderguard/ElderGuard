@@ -82,7 +82,7 @@ When proposing features, name the failure mode. "What does an attacker who contr
 
 ## Hosting / infra choices on this project
 
-- **Platform:** GCP, lean. Cloud Run (request-based billing, min 1 / max 1 at launch), Secret Manager, Firebase Auth (phone), Firestore, Firebase Cloud Messaging, one private GCS bucket. No Terraform at this scale; `infra/bootstrap.sh` is the source of truth for provisioning.
+- **Platform:** GCP, lean. Cloud Run (request-based billing, min 0 until the first real user, then min 1; max 1), Secret Manager, Firebase Auth (phone), Firestore, Firebase Cloud Messaging, one private GCS bucket. No Terraform at this scale; `infra/bootstrap.sh` is the source of truth for provisioning.
 - **Telephony:** Twilio Guardian Line with Media Streams. Fallback TwiML plays a notice when the backend is down. Auto-recharge off so the prepaid balance is a hard cost cap.
 - **AI providers:** pluggable behind `backend/app/providers/`. Anthropic scores, Deepgram transcribes at launch, with fallbacks configured in `backend/config/providers.default.yaml`. `FAKE_PROVIDERS=1` runs everything with no credentials.
 - **Mobile:** Expo / React Native, one codebase, EAS builds.

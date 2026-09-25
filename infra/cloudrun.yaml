@@ -21,7 +21,7 @@ spec:
         run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/startup-cpu-boost: "true"
         # One instance, always warm. Twilio's webhook timeout is 15 s; a cold Python start can miss it.
-        autoscaling.knative.dev/minScale: "1"
+        autoscaling.knative.dev/minScale: "0"  # 0 until the first real senior depends on it; then 1 so Twilio never hits a cold start
         autoscaling.knative.dev/maxScale: "1"
         # Live calls hold state in the process. Affinity keeps a reconnect on the same instance.
         run.googleapis.com/sessionAffinity: "true"
