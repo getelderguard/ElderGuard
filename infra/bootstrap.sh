@@ -311,6 +311,14 @@ ensure_job() {
       --http-method=POST --oidc-service-account-email="$SCHEDULER_SA" \
       --oidc-token-audience="$SERVICE_URL" --attempt-deadline=120s
   fi
+  # Until deploy.yml has created the service the URI is a placeholder; keep the job paused
+  # so it does not fire every minute at a hostname that does not exist.
+  if [[ "$SERVICE_URL" == *PLACEHOLDER* ]]; then
+    run gcloud scheduler jobs pause "$name" --location="$REGION" --project="$PROJECT" --quiet || true
+    echo "   ${name} paused until the service is deployed; re-run bootstrap after deploy.yml"
+  else
+    run gcloud scheduler jobs resume "$name" --location="$REGION" --project="$PROJECT" --quiet 2>/dev/null || true
+  fi
 }
 ensure_job "elderguard-sweep" "* * * * *" "/internal/sweep"
 ensure_job "elderguard-rollup" "10 2 * * *" "/internal/rollup"
@@ -321,8 +329,8 @@ ensure_job "elderguard-rollup" "10 2 * * *" "/internal/rollup"
 log "Cloud Logging exclusion filters"
 ensure_exclusion() {
   local name="$1" filter="$2" desc="$3"
-  if probe gcloud logging sinks describe _Default --project="$PROJECT" --format='value(exclusions)' \
-      --filter="exclusions.name=${name}"; then
+  if [[ "$DRY_RUN" -eq 0 ]] && gcloud logging sinks describe _Default --project="$PROJECT" \
+      --format='value(exclusions[].name)' 2>/dev/null | tr ';' '\n' | grep -qx "$name"; then
     run gcloud logging sinks update _Default --project="$PROJECT" \
       --update-exclusion="name=${name},filter=${filter}"
   else
