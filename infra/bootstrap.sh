@@ -60,7 +60,10 @@ done
 
 # Prerequisites: gcloud, firebase CLI, and the gcloud alpha component (monitoring channels/policies).
 for tool in gcloud firebase; do
-  command -v "$tool" >/dev/null || { echo "$tool is not installed" >&2; exit 1; }
+  if ! command -v "$tool" >/dev/null; then
+    [[ "$DRY_RUN" -eq 1 ]] || { echo "$tool is not installed" >&2; exit 1; }
+    echo "   (dry run) $tool is not installed; a real run needs it"
+  fi
 done
 for comp in alpha beta; do  # alpha: Cloud Monitoring commands; beta: Cloud Run domain mappings
   if ! gcloud "$comp" --help >/dev/null 2>&1; then
