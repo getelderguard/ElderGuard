@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 import time
 from contextlib import asynccontextmanager
 
@@ -19,7 +20,7 @@ from app.notify.push import FcmPushSender, LogPushSender, NotifyService
 from app.persistence.config_service import ConfigService, StaticConfigSource
 from app.providers.loader import load_flags, load_provider_config
 from app.providers.metrics import LogUsageSink
-from app.providers.registry import build_registry
+from app.providers.registry import build_registry, preload_providers
 from app.security.oidc import DevSchedulerVerifier, SchedulerVerifier
 from app.sessions.accounts import AccountService, InMemoryAccountRepo
 from app.sessions.store import InMemorySessionStore
@@ -125,6 +126,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             scorers=[r.provider for r in registry.available_routes("scorer")],
             transcribers=[r.provider for r in registry.available_routes("transcriber")],
         )
+        if not settings.fakes_enabled:
+            threading.Thread(target=_preload, name="provider-preload", daemon=True).start()
 
     app = FastAPI(
         title="ElderGuard API",
@@ -188,6 +191,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.include_router(r)
     stages.mark("routes")
     return app
+
+
+def _preload() -> None:
+    """Runs right after startup, inside Cloud Run's startup CPU boost window."""
+    try:
+        log.info("providers_preloaded", ms=preload_providers())
+    except Exception as e:  # noqa: BLE001
+        # A real import failure resurfaces on the first build, where the fallback chain handles it.
+        log.error("providers_preload_failed", error_type=type(e).__name__)
 
 
 def _init_sentry(settings: Settings) -> None:

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib
 import random
+import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -81,6 +83,17 @@ class ProviderRegistry:
         return entry.factory(self.settings, route)
 
 
+PROVIDER_MODULES = ("app.providers.anthropic_scorer", "app.providers.deepgram_transcriber")
+
+
+def preload_providers() -> int:
+    """Import the real provider SDKs so the first live call does not pay for it. Returns ms."""
+    t0 = time.perf_counter()
+    for name in PROVIDER_MODULES:
+        importlib.import_module(name)
+    return round((time.perf_counter() - t0) * 1000)
+
+
 def build_registry(settings: Settings, config: ProviderConfig | ConfigGetter) -> ProviderRegistry:
     getter: ConfigGetter = config if callable(config) else (lambda c=config: c)  # type: ignore[assignment]
     registry = ProviderRegistry(settings=settings, config_getter=getter)
@@ -89,28 +102,38 @@ def build_registry(settings: Settings, config: ProviderConfig | ConfigGetter) ->
         _register_fakes(registry, config, fail=settings.fakes_fail)
         return registry
 
-    from app.providers.anthropic_scorer import AnthropicScorer
-    from app.providers.deepgram_transcriber import DeepgramTranscriber
+    # The SDK modules are imported on first build, not here: on Cloud Run they take seconds to
+    # import, and the server should pass its startup probe first. main.py preloads them in a
+    # background thread right after startup; a build that races it waits on the import lock.
+    def anthropic_scorer(s: Settings, r: Route) -> Any:
+        from app.providers.anthropic_scorer import AnthropicScorer
 
-    registry.register(
-        "scorer",
-        "anthropic",
-        lambda s, r: AnthropicScorer(
+        return AnthropicScorer(
             api_key=s.anthropic_api_key.get_secret_value(),
             model=r.model or "claude-sonnet-5",
             effort=str(r.params.get("effort", "low")),
             max_tokens=int(r.params.get("max_tokens", 400)),
-        ),
+        )
+
+    def deepgram_transcriber(s: Settings, r: Route) -> Any:
+        from app.providers.deepgram_transcriber import DeepgramTranscriber
+
+        return DeepgramTranscriber(
+            api_key=s.stt_api_key.get_secret_value(),
+            model=r.model or "nova-3",
+            params=r.params,
+        )
+
+    registry.register(
+        "scorer",
+        "anthropic",
+        anthropic_scorer,
         is_configured=lambda s: s.anthropic_api_key is not None,
     )
     registry.register(
         "transcriber",
         "deepgram",
-        lambda s, r: DeepgramTranscriber(
-            api_key=s.stt_api_key.get_secret_value(),
-            model=r.model or "nova-3",
-            params=r.params,
-        ),
+        deepgram_transcriber,
         is_configured=lambda s: s.stt_api_key is not None,
     )
     return registry
