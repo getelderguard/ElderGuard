@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApiAuthMissing } from '@/api/auth';
 import { ApiError } from '@/api/client';
 import { createIntent } from '@/api/sessions';
-import { Body, EG_TOKENS, Eyebrow, Headline, PrimaryButton, SecondaryButton } from '@/design-system';
+import { Body, EG_TOKENS, Headline, PrimaryButton, SecondaryButton, Shield, Wordmark } from '@/design-system';
 import { dialGuardianLine, isGuardianLineNumber } from '@/session/dial';
 
 function explain(e: unknown): string {
@@ -42,12 +42,13 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: EG_TOKENS.paper }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: EG_TOKENS.sand }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 28, justifyContent: 'space-between' }}>
-        <View style={{ gap: 12, paddingTop: 24 }}>
-          <Eyebrow>ElderGuard</Eyebrow>
-          <Headline>On a call that feels wrong?</Headline>
-          <Body>Tap the big button. ElderGuard will join the call and listen with you.</Body>
+        <Wordmark />
+        <View style={{ gap: 16, alignItems: 'center' }}>
+          <Shield size={72} />
+          <Headline style={{ textAlign: 'center' }}>On a call that feels wrong?</Headline>
+          <Body style={{ textAlign: 'center' }}>Tap the big button. ElderGuard will join the call and listen with you.</Body>
         </View>
         <View style={{ gap: 14 }}>
           {problem && (

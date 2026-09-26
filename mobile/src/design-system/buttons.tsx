@@ -28,7 +28,7 @@ export function PrimaryButton({
   accessibilityHint,
   style,
 }: BtnProps & { danger?: boolean }) {
-  const bg = danger ? EG_TOKENS.alert : EG_TOKENS.ink;
+  const bg = danger ? EG_TOKENS.alert : EG_TOKENS.turquoiseDark;
   return (
     <Pressable
       accessibilityRole="button"
@@ -41,7 +41,7 @@ export function PrimaryButton({
           minHeight: 60,
           paddingVertical: 18,
           paddingHorizontal: 20,
-          borderRadius: 14,
+          borderRadius: 12,
           backgroundColor: bg,
           alignItems: 'center',
           justifyContent: 'center',
@@ -52,7 +52,7 @@ export function PrimaryButton({
     >
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE}
-        style={{ fontFamily: EG_FONTS.sansSemi, fontSize: 19, color: EG_TOKENS.paper, textAlign: 'center' }}
+        style={{ fontFamily: EG_FONTS.sansSemi, fontSize: 19, color: EG_TOKENS.white, textAlign: 'center' }}
       >
         {children}
       </Text>
@@ -73,19 +73,19 @@ export function SecondaryButton({ children, onPress, disabled, accessibilityHint
           minHeight: 60,
           paddingVertical: 17,
           paddingHorizontal: 20,
-          borderRadius: 14,
+          borderRadius: 12,
           borderWidth: 1.5,
-          borderColor: EG_TOKENS.ink,
+          borderColor: EG_TOKENS.turquoise,
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: pressed ? EG_TOKENS.paperDeep : 'transparent',
+          backgroundColor: pressed ? EG_TOKENS.cream : EG_TOKENS.white,
         },
         style,
       ]}
     >
       <Text
         maxFontSizeMultiplier={MAX_FONT_SCALE}
-        style={{ fontFamily: EG_FONTS.sansSemi, fontSize: 18, color: EG_TOKENS.ink, textAlign: 'center' }}
+        style={{ fontFamily: EG_FONTS.sansSemi, fontSize: 18, color: EG_TOKENS.turquoiseDark, textAlign: 'center' }}
       >
         {children}
       </Text>
@@ -107,7 +107,7 @@ export function GhostLink({ children, onPress, accessibilityHint, style }: BtnPr
         style={{
           fontFamily: EG_FONTS.sansSemi,
           fontSize: 16,
-          color: EG_TOKENS.inkSoft,
+          color: EG_TOKENS.textMid,
           textDecorationLine: 'underline',
         }}
       >

@@ -1,9 +1,9 @@
-import { Fraunces_400Regular_Italic, Fraunces_500Medium } from '@expo-google-fonts/fraunces';
 import {
-  PublicSans_400Regular,
-  PublicSans_600SemiBold,
-  PublicSans_700Bold,
-} from '@expo-google-fonts/public-sans';
+  CormorantGaramond_500Medium,
+  CormorantGaramond_500Medium_Italic,
+  CormorantGaramond_600SemiBold,
+} from '@expo-google-fonts/cormorant-garamond';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from '@expo-google-fonts/inter';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -17,11 +17,12 @@ SplashScreen.preventAutoHideAsync().catch(() => {});
 export default function RootLayout() {
   // Keys become the fontFamily names used in EG_FONTS.
   const [loaded, error] = useFonts({
-    Fraunces_500Medium,
-    Fraunces_400Regular_Italic,
-    PublicSans_400Regular,
-    PublicSans_600SemiBold,
-    PublicSans_700Bold,
+    CormorantGaramond_500Medium,
+    CormorantGaramond_500Medium_Italic,
+    CormorantGaramond_600SemiBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
   });
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export default function RootLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          contentStyle: { backgroundColor: EG_TOKENS.paper },
+          contentStyle: { backgroundColor: EG_TOKENS.sand },
         }}
       />
     </>

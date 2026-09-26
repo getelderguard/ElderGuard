@@ -18,8 +18,8 @@ const TIER_COLOR: Record<Tier, string> = {
   listening: EG_TOKENS.brass,
   caution: EG_TOKENS.caution,
   stop: EG_TOKENS.alert,
-  unknown: EG_TOKENS.inkFaint,
-  no_audio: EG_TOKENS.inkFaint,
+  unknown: EG_TOKENS.faint,
+  no_audio: EG_TOKENS.faint,
 };
 
 const TIER_SPOKEN: Record<Tier, string> = {
@@ -63,7 +63,7 @@ export function BrassDial({ value = 0, tier = 'listening', size = 200, label }: 
 
   const labelPt = (frac: number) => point(startA + sweep * frac, radius + 22);
   const scale: [number, string, string][] = [
-    [0.08, 'LISTEN', EG_TOKENS.inkMuted],
+    [0.08, 'LISTEN', EG_TOKENS.textMid],
     [0.5, 'CAUTION', EG_TOKENS.caution],
     [0.92, 'STOP', EG_TOKENS.alert],
   ];
@@ -76,7 +76,7 @@ export function BrassDial({ value = 0, tier = 'listening', size = 200, label }: 
       style={{ alignItems: 'center' }}
     >
       <Svg width={size} height={size * 0.78} viewBox={`0 0 ${size} ${size * 0.78}`}>
-        <Circle cx={center} cy={center} r={radius + 12} fill="none" stroke={EG_TOKENS.brass} strokeWidth={1.5} opacity={0.4} />
+        <Circle cx={center} cy={center} r={radius + 12} fill="none" stroke={EG_TOKENS.turquoise} strokeWidth={1.5} opacity={0.4} />
         <Path d={arc} fill="none" stroke={EG_TOKENS.rule} strokeWidth={3} />
         <Path d={arc} fill="none" stroke={stateColor} strokeWidth={3} strokeDasharray={`${dashLen} 1000`} />
         {ticks.map((t, i) => (
@@ -86,7 +86,7 @@ export function BrassDial({ value = 0, tier = 'listening', size = 200, label }: 
             y1={t.y1}
             x2={t.x2}
             y2={t.y2}
-            stroke={EG_TOKENS.ink}
+            stroke={EG_TOKENS.brown}
             strokeWidth={t.major ? 1.5 : 1}
             opacity={t.major ? 0.5 : 0.25}
           />
@@ -100,7 +100,7 @@ export function BrassDial({ value = 0, tier = 'listening', size = 200, label }: 
               y={y}
               textAnchor="middle"
               fontSize={9}
-              fontFamily={EG_FONTS.sansBold}
+              fontFamily={EG_FONTS.sansSemi}
               letterSpacing={1}
               fill={color}
             >
@@ -108,8 +108,8 @@ export function BrassDial({ value = 0, tier = 'listening', size = 200, label }: 
             </SvgText>
           );
         })}
-        <Line x1={center} y1={center} x2={nx} y2={ny} stroke={EG_TOKENS.ink} strokeWidth={3} strokeLinecap="round" />
-        <Circle cx={center} cy={center} r={6} fill={EG_TOKENS.brass} stroke={EG_TOKENS.ink} strokeWidth={1.5} />
+        <Line x1={center} y1={center} x2={nx} y2={ny} stroke={EG_TOKENS.brown} strokeWidth={3} strokeLinecap="round" />
+        <Circle cx={center} cy={center} r={6} fill={EG_TOKENS.brass} stroke={EG_TOKENS.brown} strokeWidth={1.5} />
       </Svg>
       {label && <Eyebrow style={{ marginTop: 4 }}>{label}</Eyebrow>}
     </View>

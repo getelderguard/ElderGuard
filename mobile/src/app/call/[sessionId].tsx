@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Body, BrassDial, EG_TOKENS, Eyebrow, Headline, PrimaryButton, SecondaryButton } from '@/design-system';
+import { Body, BrassDial, EG_TOKENS, Headline, PrimaryButton, SecondaryButton, Shield, Wordmark } from '@/design-system';
 import { TIER_COPY } from '@/session/copy';
 import { useLiveSession } from '@/session/useLiveSession';
 
@@ -19,7 +19,7 @@ export default function CallScreen() {
     return (
       <Screen>
         <View style={{ gap: 12 }}>
-          <Eyebrow>ElderGuard</Eyebrow>
+          <Wordmark size={22} />
           <Headline>{neverJoined ? 'ElderGuard did not join' : 'The call has ended'}</Headline>
           <Body>
             {neverJoined
@@ -43,8 +43,12 @@ export default function CallScreen() {
   return (
     <Screen danger={danger}>
       <View style={{ gap: 20, alignItems: 'center' }}>
-        <Eyebrow>ElderGuard</Eyebrow>
-        {live && <BrassDial value={lostContact ? 0 : (session?.dial ?? 0)} tier={tier} size={240} />}
+        <Wordmark size={22} />
+        {live ? (
+          <BrassDial value={lostContact ? 0 : (session?.dial ?? 0)} tier={tier} size={240} />
+        ) : (
+          <Shield size={88} />
+        )}
         <View style={{ gap: 12, alignSelf: 'stretch' }} accessibilityLiveRegion="assertive">
           <Headline style={danger ? { color: EG_TOKENS.alert } : undefined}>{copy.title}</Headline>
           <Body>{copy.body}</Body>
@@ -72,7 +76,7 @@ function useMergeTimeout(state: string | undefined): boolean {
 
 function Screen({ children, danger }: { children: React.ReactNode; danger?: boolean }) {
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: danger ? EG_TOKENS.alertWash : EG_TOKENS.paper }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: danger ? EG_TOKENS.alertWash : EG_TOKENS.sand }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 28, justifyContent: 'space-between' }}>
         {children}
       </ScrollView>

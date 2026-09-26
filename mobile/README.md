@@ -35,6 +35,6 @@ Firebase client configs (`google-services.json`, `GoogleService-Info.plist`) con
 ## Layout
 
 - `src/app/` routes (expo-router). Every file is a screen.
-- `src/design-system/` tokens, type, buttons, Letterhead, BrassDial, ported from `prototype/`.
+- `src/design-system/` palette and type from getelderguard.org (Cormorant Garamond, Inter, sand/brown/turquoise); buttons, Card, Shield, BrassDial.
 - `src/session/` live-call state. Tiers mirror the backend; there is no "safe" tier.
-- `licenses/` OFL texts for the bundled Fraunces and Public Sans fonts.
+- `licenses/` OFL texts for the bundled Cormorant Garamond and Inter fonts.
