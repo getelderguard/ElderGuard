@@ -493,11 +493,34 @@ if ! found gcloud secrets versions list TWILIO_AUTH_TOKEN --project="$PROJECT" \
   echo "   TWILIO_AUTH_TOKEN has no version yet; deploying without it. Add the version, re-run bootstrap."
   SECRET_ARGS=()
 fi
+# The three Twilio values come from the caller's environment, else whatever the running function
+# already has, else REPLACE_ME. A re-run must never reset a configured kill switch to placeholders.
+ks_current() {
+  [[ "$DRY_RUN" -eq 0 ]] || return 0
+  gcloud run services describe budget-killswitch --region="$REGION" --project="$PROJECT" \
+    --format=json 2>/dev/null | python3 -c '
+import json, sys
+try:
+    env = json.load(sys.stdin)["spec"]["template"]["spec"]["containers"][0].get("env", [])
+except Exception:
+    sys.exit(0)
+v = next((e.get("value", "") for e in env if e.get("name") == sys.argv[1]), "")
+print("" if v == "REPLACE_ME" else v)' "$1"
+}
+KS_SID="${TWILIO_ACCOUNT_SID:-$(ks_current TWILIO_ACCOUNT_SID)}"
+KS_NUMBER="${TWILIO_GUARDIAN_NUMBER:-$(ks_current TWILIO_GUARDIAN_NUMBER)}"
+KS_FALLBACK="${FALLBACK_TWIML_URL:-$(ks_current FALLBACK_TWIML_URL)}"
+for v in KS_SID KS_NUMBER KS_FALLBACK; do
+  if [[ -z "${!v}" ]]; then
+    printf -v "$v" '%s' REPLACE_ME
+    echo "   ${v#KS_} not set; the kill switch cannot repoint the number until it is (see infra/README.md)"
+  fi
+done
 run gcloud functions deploy budget-killswitch --gen2 --region="$REGION" --project="$PROJECT" \
   --runtime=python312 --source="${HERE}/functions/budget-killswitch" --entry-point=on_budget \
   --trigger-topic="$BUDGET_TOPIC" --service-account="$KILLSWITCH_SA" \
   --build-service-account="projects/${PROJECT}/serviceAccounts/${BUILD_SA}" \
-  --set-env-vars="GCP_PROJECT=${PROJECT},TWILIO_ACCOUNT_SID=REPLACE_ME,TWILIO_GUARDIAN_NUMBER=REPLACE_ME,FALLBACK_TWIML_URL=REPLACE_ME" \
+  --set-env-vars="^|^GCP_PROJECT=${PROJECT}|TWILIO_ACCOUNT_SID=${KS_SID}|TWILIO_GUARDIAN_NUMBER=${KS_NUMBER}|FALLBACK_TWIML_URL=${KS_FALLBACK}" \
   ${SECRET_ARGS[@]+"${SECRET_ARGS[@]}"} \
   --memory=256Mi --max-instances=1 --no-allow-unauthenticated
 
@@ -578,7 +601,7 @@ Console checklist:
   [ ] Firebase Cloud Messaging: upload the APNs key (M2).
   [ ] Anthropic console: set the organization spend limit (about \$100) and an 80% alert.
   [ ] Twilio console: turn auto-recharge OFF. Then:  python3 infra/scripts/twilio_setup.py --project ${PROJECT}
-  [ ] Function env: set TWILIO_ACCOUNT_SID, TWILIO_GUARDIAN_NUMBER, FALLBACK_TWIML_URL on budget-killswitch
+  [ ] Kill switch: re-run bootstrap with TWILIO_ACCOUNT_SID, TWILIO_GUARDIAN_NUMBER, FALLBACK_TWIML_URL exported (twilio_setup.py prints the URL); later re-runs keep them
       (twilio_setup.py prints the Bin URL).
   [ ] Sentry: create the project and add SENTRY_DSN as a secret version.
   [ ] Deepgram console: lower the project's concurrency / usage limit.
