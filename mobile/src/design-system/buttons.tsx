@@ -7,6 +7,7 @@ import { EG_FONTS, EG_TOKENS, MAX_FONT_SCALE } from './tokens';
 type BtnProps = {
   children: ReactNode;
   onPress?: () => void;
+  disabled?: boolean;
   accessibilityHint?: string;
   style?: StyleProp<ViewStyle>;
 };
@@ -23,6 +24,7 @@ export function PrimaryButton({
   children,
   onPress,
   danger,
+  disabled,
   accessibilityHint,
   style,
 }: BtnProps & { danger?: boolean }) {
@@ -31,6 +33,8 @@ export function PrimaryButton({
     <Pressable
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
       onPress={press(onPress)}
       style={({ pressed }) => [
         {
@@ -41,7 +45,7 @@ export function PrimaryButton({
           backgroundColor: bg,
           alignItems: 'center',
           justifyContent: 'center',
-          opacity: pressed ? 0.85 : 1,
+          opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
         },
         style,
       ]}
@@ -56,11 +60,13 @@ export function PrimaryButton({
   );
 }
 
-export function SecondaryButton({ children, onPress, accessibilityHint, style }: BtnProps) {
+export function SecondaryButton({ children, onPress, disabled, accessibilityHint, style }: BtnProps) {
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: !!disabled }}
+      disabled={disabled}
       onPress={press(onPress)}
       style={({ pressed }) => [
         {
