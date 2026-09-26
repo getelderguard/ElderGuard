@@ -568,7 +568,7 @@ Secrets: add one version each, piping the value from a file or a password manage
   PHONE_HASH_PEPPER and STREAM_TOKEN_SECRET:  python3 -c 'import secrets; print(secrets.token_hex(32))' | gcloud secrets versions add NAME --data-file=-
 
 Cloudflare DNS: create a CNAME
-  ${API_HOST}  ->  ghs.googlehosted.com   (proxy status: DNS only, or proxied; WebSockets pass either way)
+  ${API_HOST}  ->  ghs.googlehosted.com   (proxy status: DNS only. Google cannot issue the certificate through the Cloudflare proxy)
   Confirm the exact target with:  gcloud beta run domain-mappings describe --domain=${API_HOST} --region=${REGION}
 
 Console checklist:

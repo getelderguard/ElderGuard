@@ -53,6 +53,39 @@ def fallback_twiml() -> str:
     )
 
 
+def _fallback_url(client) -> str:
+    """A URL Twilio can fetch for the fallback TwiML when our backend is unreachable.
+
+    Tries the TwiML Bins API first. Twilio does not document a public Bins API for every
+    account, so on any failure it falls back to Twilio's hosted echo Twimlet, which returns
+    the TwiML passed in its query string. Either way the fallback lives on Twilio's side and
+    works while Cloud Run is down.
+    """
+    try:
+        bins = client.request(
+            "GET", "https://twiml-bins.twilio.com/v1/TwimlBins", params={"PageSize": 100}
+        )
+        if bins.status_code >= 300:
+            raise RuntimeError(f"HTTP {bins.status_code}")
+        existing = next(
+            (b for b in bins.json().get("twiml_bins", []) if b.get("friendly_name") == BIN_NAME),
+            None,
+        )
+        payload = {"FriendlyName": BIN_NAME, "Twiml": fallback_twiml()}
+        url = "https://twiml-bins.twilio.com/v1/TwimlBins"
+        if existing:
+            url = f"{url}/{existing['sid']}"
+        resp = client.request("POST", url, data=payload)
+        if resp.status_code >= 300:
+            raise RuntimeError(f"HTTP {resp.status_code}")
+        return resp.json()["url"]
+    except Exception as e:  # noqa: BLE001 - any failure means use the Twimlet
+        print(f"TwiML Bins API unavailable ({type(e).__name__}: {str(e)[:80]}); using echo Twimlet")
+        from urllib.parse import quote
+
+        return "https://twimlets.com/echo?Twiml=" + quote(fallback_twiml(), safe="")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -93,21 +126,8 @@ def main() -> int:
 
     # 1. TwiML Bin. The Bins API lives under the serverless/"TwiML Bins" product; the REST path
     # is https://twiml-bins.twilio.com. The python SDK exposes it through client.request.
-    bins = client.request(
-        "GET", "https://twiml-bins.twilio.com/v1/TwimlBins", params={"PageSize": 100}
-    )
-    existing = next(
-        (b for b in bins.json().get("twiml_bins", []) if b.get("friendly_name") == BIN_NAME), None
-    )
-    payload = {"FriendlyName": BIN_NAME, "Twiml": fallback_twiml()}
-    if existing:
-        resp = client.request(
-            "POST", f"https://twiml-bins.twilio.com/v1/TwimlBins/{existing['sid']}", data=payload
-        )
-    else:
-        resp = client.request("POST", "https://twiml-bins.twilio.com/v1/TwimlBins", data=payload)
-    bin_url = resp.json()["url"]
-    print(f"fallback bin url: {bin_url}")
+    bin_url = _fallback_url(client)
+    print(f"fallback url: {bin_url}")
 
     # 2. Number configuration.
     numbers = client.incoming_phone_numbers.list(phone_number=number, limit=1)
