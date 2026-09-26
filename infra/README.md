@@ -24,6 +24,7 @@ Nothing in this directory contains or reads a secret value.
 | `scripts/set_provider.py` | Switch a capability's provider or flip the kill switch. Writes `config_history`. |
 | `scripts/set_flag.py` | Flip a feature flag. Writes `config_history`. |
 | `scripts/grant_staff.py` | Set the `staff` custom claim that unlocks `/admin/usage`. |
+| `scripts/add_secret.sh` | First-time entry of a secret: opens an empty editor window, you paste the value there, the script strips whitespace, adds the version, and shreds the file. Nothing goes through the shell or clipboard. |
 | `scripts/rotate_secret.sh` | Add a secret version from stdin and disable older ones. Refuses a TTY. |
 | `functions/budget-killswitch/` | Pub/Sub function: at 100% of budget, set the kill switch and repoint the Twilio number. |
 
