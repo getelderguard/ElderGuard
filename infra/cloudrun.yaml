@@ -23,8 +23,11 @@ spec:
         # Request-based billing: CPU is only allocated while a request (or WebSocket) is open.
         run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/startup-cpu-boost: "true"
-        # One instance, always warm. Twilio's webhook timeout is 15 s; a cold Python start can miss it.
-        autoscaling.knative.dev/minScale: "0"  # 0 until the first real senior depends on it; then 1 so Twilio never hits a cold start
+        # Twilio's webhook timeout is 15 s, so a cold start must stay well under it (startup-latency
+        # alert at 8 s). The every-minute /internal/sweep keeps this instance warm, and with
+        # request-based billing an idle warm instance costs nothing. Set 1 when the first real
+        # senior depends on the line: that bills idle time but survives platform restarts.
+        autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "1"
         # Live calls hold state in the process. Affinity keeps a reconnect on the same instance.
         run.googleapis.com/sessionAffinity: "true"
@@ -43,7 +46,7 @@ spec:
           resources:
             limits:
               cpu: "1"
-              memory: 2Gi
+              memory: 1Gi  # measured p99 ~100 MB at launch; recheck memory/utilizations before raising
           env:
             - name: ENV
               value: prod

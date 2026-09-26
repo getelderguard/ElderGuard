@@ -1,0 +1,62 @@
+"""Startup timing event and the cached OIDC cert transport."""
+
+from __future__ import annotations
+
+import asyncio
+
+import cachecontrol
+import pytest
+from fastapi import HTTPException
+from fastapi.testclient import TestClient
+
+import app.main as main
+from app.main import create_app
+from app.security import oidc
+from tests.conftest import make_settings
+
+
+def test_startup_timing_logged_once_with_stages(monkeypatch):
+    logs = []
+
+    class Recorder:
+        def info(self, event, **kw):
+            logs.append({"event": event, **kw})
+
+        warning = error = info
+
+    # create_app() reconfigures structlog, so structlog.testing.capture_logs would be overridden.
+    monkeypatch.setattr(main, "log", Recorder())
+    with TestClient(create_app(make_settings())):
+        pass
+    timing = [e for e in logs if e["event"] == "startup_timing"]
+    assert len(timing) == 1
+    stages = {
+        "app_imports",
+        "settings",
+        "store",
+        "registry",
+        "push",
+        "auth",
+        "routes",
+        "config_refresh",
+    }
+    assert stages <= timing[0].keys()
+    assert timing[0]["total_ms"] == sum(timing[0][k] for k in stages)
+
+
+def test_scheduler_verify_reuses_one_cached_transport(monkeypatch):
+    monkeypatch.setattr(oidc, "_cert_request", None)
+    seen = []
+
+    def fake_verify(token, request, audience):
+        seen.append(request)
+        raise ValueError("bad token")
+
+    monkeypatch.setattr("google.oauth2.id_token.verify_oauth2_token", fake_verify)
+    verifier = oidc.SchedulerVerifier("sched@example.test", "https://api.example.test")
+    for _ in range(2):
+        with pytest.raises(HTTPException):
+            asyncio.run(verifier.verify("t", "/internal/sweep"))
+    assert len(seen) == 2 and seen[0] is seen[1]
+    adapter = seen[0].session.get_adapter("https://www.googleapis.com/oauth2/v1/certs")
+    assert isinstance(adapter, cachecontrol.CacheControlAdapter)

@@ -20,6 +20,7 @@ dependencies = [
   "google-cloud-firestore>=2.19",
   "firebase-admin>=6.6",
   "google-auth>=2.35",
+  "cachecontrol>=0.14",  # caches Google's OIDC signing certs (security/oidc.py)
   "sentry-sdk[fastapi]>=2.19",
 ]
 

@@ -20,6 +20,7 @@ Nothing in this directory contains or reads a secret value.
 | `monitoring/log-metrics.json` | Log-based metrics derived from the backend's structured log events. |
 | `monitoring/alerts/*.json` | Alert policies. `__PROJECT__`, `__SERVICE__`, `__CHANNEL__` are substituted by the script. |
 | `monitoring/export-bucket-lifecycle.json` | Deletes Firestore exports after 60 days. |
+| `artifact-cleanup.json` | Artifact Registry cleanup: keeps the 5 newest `api` images and anything under 7 days old, deletes the rest. |
 | `scripts/twilio_setup.py` | Points the Guardian Line at the backend, creates the fallback TwiML Bin and usage triggers. |
 | `scripts/set_provider.py` | Switch a capability's provider or flip the kill switch. Writes `config_history`. |
 | `scripts/set_flag.py` | Flip a feature flag. Writes `config_history`. |

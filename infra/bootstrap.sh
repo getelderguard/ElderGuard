@@ -289,6 +289,11 @@ else
   run gcloud artifacts repositories create "$AR_REPO" --repository-format=docker \
     --location="$REGION" --project="$PROJECT"
 fi
+# Each deploy pushes a ~190 MB image and storage past 0.5 GB is billed, so keep the 5 newest
+# (enough to roll back) plus anything under a week old, and delete the rest.
+echo "   cleanup policy (infra/artifact-cleanup.json)"
+run gcloud artifacts repositories set-cleanup-policies "$AR_REPO" --location="$REGION" \
+  --project="$PROJECT" --policy="${HERE}/artifact-cleanup.json" --no-dry-run
 
 # ---------------------------------------------------------------------------------------------
 # 6. Cloud Run service (first deploy uses a placeholder image so IAM and URL exist)

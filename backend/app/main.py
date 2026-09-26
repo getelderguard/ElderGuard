@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import time
 from contextlib import asynccontextmanager
 
 import structlog
@@ -11,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from app import IMPORT_T0
 from app.api import accounts, admin, deps, devices, guardians, health, internal, sessions
 from app.logging_setup import configure_logging
 from app.notify.push import FcmPushSender, LogPushSender, NotifyService
@@ -27,10 +29,35 @@ from app.twilio import media, voice
 log = structlog.get_logger("app")
 
 
+class _Stages:
+    """Milliseconds per startup stage, logged once as `startup_timing`. Timings only, no PII.
+
+    `app_imports` is app.main and everything it imports. Interpreter and uvicorn start come before
+    that; on Cloud Run they are the gap from the "Starting new instance" line to this event, minus
+    total_ms. Later create_app() calls in the same process (tests) report app_imports as 0.
+    """
+
+    _imports_reported = False
+
+    def __init__(self) -> None:
+        self._t = time.perf_counter()
+        self.ms: dict[str, int] = {"app_imports": 0}
+        if not _Stages._imports_reported:
+            _Stages._imports_reported = True
+            self.ms["app_imports"] = round((self._t - IMPORT_T0) * 1000)
+
+    def mark(self, stage: str) -> None:
+        now = time.perf_counter()
+        self.ms[stage] = round((now - self._t) * 1000)
+        self._t = now
+
+
 def create_app(settings: Settings | None = None) -> FastAPI:
+    stages = _Stages()
     settings = settings or Settings()
     configure_logging(settings.log_level, json_output=settings.is_prod)
     _init_sentry(settings)
+    stages.mark("settings")
 
     base_config = load_provider_config(settings.providers_config_path)
     base_flags = load_flags(settings.flags_config_path)
@@ -54,12 +81,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         account_repo = InMemoryAccountRepo(settings)
         usage_sink = LogUsageSink()
         config_source = StaticConfigSource()
+    stages.mark("store")
 
     config_service = ConfigService(
         base_config, base_flags, config_source, cache_seconds=settings.config_cache_seconds
     )
     registry = build_registry(settings, lambda: config_service.config)
+    stages.mark("registry")
     push_sender = FcmPushSender(settings.gcp_project) if settings.use_fcm else LogPushSender()
+    stages.mark("push")
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
@@ -83,6 +113,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if settings.twilio_auth_token is None:
             log.warning("twilio_auth_token_missing", detail="Twilio webhooks will return 503")
         await config_service.refresh(force=True)
+        stages.mark("config_refresh")
+        log.info("startup_timing", total_ms=sum(stages.ms.values()), **stages.ms)
         log.info(
             "startup",
             env=settings.env,
@@ -129,6 +161,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
     elif not settings.is_prod:
         app.state.scheduler_verifier = DevSchedulerVerifier()
+    stages.mark("auth")
 
     if settings.cors_origin_list:
         app.add_middleware(
@@ -153,6 +186,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         admin.router,
     ):
         app.include_router(r)
+    stages.mark("routes")
     return app
 
 

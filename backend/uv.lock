@@ -531,6 +531,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "anthropic" },
+    { name = "cachecontrol" },
     { name = "fastapi" },
     { name = "firebase-admin" },
     { name = "google-auth" },
@@ -558,6 +559,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "anthropic", specifier = ">=1.0" },
+    { name = "cachecontrol", specifier = ">=0.14" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "firebase-admin", specifier = ">=6.6" },
     { name = "google-auth", specifier = ">=2.35" },

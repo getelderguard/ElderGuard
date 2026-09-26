@@ -9,6 +9,21 @@ from fastapi import HTTPException, Request
 
 log = structlog.get_logger("oidc")
 
+_cert_request = None
+
+
+def _google_request():
+    """One transport for every verify, with an HTTP cache so Google's signing certs are fetched
+    per their Cache-Control headers instead of on every scheduler call (the google-auth pattern)."""
+    global _cert_request
+    if _cert_request is None:
+        import cachecontrol
+        import requests
+        from google.auth.transport import requests as g_requests
+
+        _cert_request = g_requests.Request(session=cachecontrol.CacheControl(requests.Session()))
+    return _cert_request
+
 
 class SchedulerVerifier:
     def __init__(self, allowed_email: str, audience_base: str) -> None:
@@ -16,13 +31,12 @@ class SchedulerVerifier:
         self.audience_base = audience_base.rstrip("/")
 
     async def verify(self, token: str, path: str) -> str:
-        from google.auth.transport import requests as g_requests
         from google.oauth2 import id_token as g_id_token
 
         audience = f"{self.audience_base}{path}"
         try:
             claims = await asyncio.to_thread(
-                g_id_token.verify_oauth2_token, token, g_requests.Request(), audience
+                g_id_token.verify_oauth2_token, token, _google_request(), audience
             )
         except Exception as e:  # noqa: BLE001
             log.warning("scheduler_token_rejected", error=type(e).__name__)

@@ -14,6 +14,8 @@ RUN uv sync --frozen --no-dev --no-install-project
 
 COPY app ./app
 COPY config ./config
+# PYTHONDONTWRITEBYTECODE means the app's own .pyc would be recompiled on every cold start.
+RUN python -m compileall -q app
 
 RUN adduser --system --no-create-home --group elderguard \
     && chown -R elderguard:elderguard /srv

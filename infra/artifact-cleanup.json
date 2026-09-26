@@ -1,0 +1,12 @@
+[
+  {
+    "name": "keep-recent-api",
+    "action": { "type": "Keep" },
+    "mostRecentVersions": { "packageNamePrefixes": ["api"], "keepCount": 5 }
+  },
+  {
+    "name": "delete-older-than-7d",
+    "action": { "type": "Delete" },
+    "condition": { "tagState": "ANY", "olderThan": "7d" }
+  }
+]
