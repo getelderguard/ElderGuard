@@ -73,7 +73,7 @@ When proposing features, name the failure mode. "What does an attacker who contr
 ## Project layout
 
 - [backend/](backend/) — Python FastAPI service: Guardian Line voice webhooks, Twilio media-stream WebSocket, rolling scam scoring, pluggable AI providers. Reads secrets from `.env` locally and Secret Manager in prod.
-- [mobile/](mobile/) — Expo / React Native app for iOS and Android (from M2).
+- [mobile/](mobile/) — Expo / React Native app for iOS and Android. See [mobile/README.md](mobile/README.md).
 - [prototype/](prototype/) — the original Vite/React click-through, frozen as a visual reference. Not deployed, not maintained. Deleted once every screen exists in `mobile/`.
 - [infra/](infra/) — GCP bootstrap script, Cloud Run service spec, Firestore rules, Twilio setup (from M1).
 - [docs/](docs/) — architecture, threat model, data retention, legal notes, fork guide, runbook, and the policy text the website hosts.

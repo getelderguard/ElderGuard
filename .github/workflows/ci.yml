@@ -100,6 +100,28 @@ jobs:
           firebase emulators:exec --only firestore --project demo-elderguard \
             "cd ../backend && FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCP_PROJECT=demo-elderguard uv run pytest -q tests/test_firestore_repos.py"
 
+  mobile:
+    name: mobile (typecheck, audit, bundle)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install
+        run: npm ci --no-fund
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: npm audit (fail on high)
+        run: npm audit --audit-level=high
+      - name: Bundle iOS and Android
+        run: npx expo export --platform ios --platform android --output-dir /tmp/eg-export
+
   infra-lint:
     name: infra (shellcheck, yaml/json syntax)
     runs-on: ubuntu-latest

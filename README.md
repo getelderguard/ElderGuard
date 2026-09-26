@@ -25,8 +25,8 @@ Outside of calls, **Show Me** lets the senior photograph, paste, or describe a s
 | Piece | State |
 |---|---|
 | Backend: Guardian Line webhooks, media stream, rolling scorer, provider layer, fakes, tests | Built (M0). Not yet exercised on a real carrier call. See [docs/M0-REAL-CALL.md](docs/M0-REAL-CALL.md). |
-| GCP deploy, Firebase auth, Firestore, alerts, cost guardrails | M1, next |
-| Expo mobile app (iOS and Android) | M2 |
+| GCP deploy, Firebase auth, Firestore, alerts, cost guardrails | Deployed (M1) |
+| Expo mobile app (iOS and Android) | M2 in progress: scaffold, design system, home screen |
 | Spoken takeover in the guardian's voice | M3 |
 | Show Me with real inputs | M4 |
 | Store submission, getelderguard.org, fork guide | M5 |
