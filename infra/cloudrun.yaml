@@ -97,11 +97,13 @@ spec:
                 secretKeyRef:
                   name: STREAM_TOKEN_SECRET
                   key: latest
-            - name: SENTRY_DSN
-              valueFrom:
-                secretKeyRef:
-                  name: SENTRY_DSN
-                  key: latest
+            # Sentry is optional. Cloud Run refuses to start a revision that mounts a secret with
+            # no version, so uncomment this only after `SENTRY_DSN` has one (infra/README.md).
+            # - name: SENTRY_DSN
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: SENTRY_DSN
+            #       key: latest
           startupProbe:
             httpGet:
               path: /health

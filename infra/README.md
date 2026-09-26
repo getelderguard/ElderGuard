@@ -82,7 +82,7 @@ Nothing in this directory contains or reads a secret value.
 - Anthropic console: organization spend limit (about $100 at launch) and an 80% alert.
 - Twilio console: auto-recharge OFF, low-balance email notification on.
 - Deepgram console: lower the project's usage limit.
-- Sentry: create the project; add `SENTRY_DSN` as a secret version.
+- Sentry: create the project; add `SENTRY_DSN` as a secret version; then uncomment the `SENTRY_DSN` mount in `cloudrun.yaml` and redeploy. The mount is commented out by default because Cloud Run refuses a revision that references a secret with no version.
 
 ## Day-two operations
 
