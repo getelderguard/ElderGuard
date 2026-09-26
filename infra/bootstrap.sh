@@ -312,16 +312,19 @@ log "Cloud Scheduler jobs"
 ensure_job() {
   local name="$1" schedule="$2" path="$3"
   local uri="${SERVICE_URL}${path}"
+  # The app checks the token audience against PUBLIC_BASE_URL + path (cloudrun.yaml), not the
+  # run.app URL the request is sent to.
+  local audience="https://${API_HOST}${path}"
   if probe gcloud scheduler jobs describe "$name" --location="$REGION" --project="$PROJECT"; then
     run gcloud scheduler jobs update http "$name" --location="$REGION" --project="$PROJECT" \
       --schedule="$schedule" --time-zone="America/Los_Angeles" --uri="$uri" \
       --http-method=POST --oidc-service-account-email="$SCHEDULER_SA" \
-      --oidc-token-audience="$SERVICE_URL" --attempt-deadline=120s
+      --oidc-token-audience="$audience" --attempt-deadline=120s
   else
     run gcloud scheduler jobs create http "$name" --location="$REGION" --project="$PROJECT" \
       --schedule="$schedule" --time-zone="America/Los_Angeles" --uri="$uri" \
       --http-method=POST --oidc-service-account-email="$SCHEDULER_SA" \
-      --oidc-token-audience="$SERVICE_URL" --attempt-deadline=120s
+      --oidc-token-audience="$audience" --attempt-deadline=120s
   fi
   # Until deploy.yml has created the service the URI is a placeholder; keep the job paused
   # so it does not fire every minute at a hostname that does not exist.
@@ -385,10 +388,21 @@ fi
 
 log "Uptime check on /health from three regions"
 UPTIME_HOST="${SERVICE_URL#https://}"
-if found gcloud monitoring uptime list-configs --project="$PROJECT" --format='value(name)' \
-    --filter='displayName="ElderGuard /health"'; then
-  echo "   uptime check exists"
+UPTIME_EXISTING=""
+if [[ "$DRY_RUN" -eq 0 ]]; then
+  UPTIME_EXISTING="$(gcloud monitoring uptime list-configs --project="$PROJECT" \
+    --filter='displayName="ElderGuard /health"' \
+    --format='value(name,monitoredResource.labels.host)' 2>/dev/null | head -1)"
+fi
+if [[ -n "$UPTIME_EXISTING" && "${UPTIME_EXISTING#*$'\t'}" == "$UPTIME_HOST" ]]; then
+  echo "   uptime check exists for ${UPTIME_HOST}"
+elif [[ "$SERVICE_URL" == *PLACEHOLDER* && -n "$UPTIME_EXISTING" ]]; then
+  echo "   uptime check exists; it is re-pointed on the re-run after deploy.yml"
 else
+  if [[ -n "$UPTIME_EXISTING" ]]; then
+    # The monitored host cannot be updated in place; replace the check.
+    run gcloud monitoring uptime delete "${UPTIME_EXISTING%%$'\t'*}" --project="$PROJECT" --quiet
+  fi
   run gcloud monitoring uptime create "ElderGuard /health" --project="$PROJECT" \
     --resource-type=uptime-url --resource-labels="host=${UPTIME_HOST},project_id=${PROJECT}" \
     --protocol=https --path=/health --port=443 --period=5 --timeout=10 \
