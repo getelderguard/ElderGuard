@@ -87,7 +87,7 @@ Automatic merge on Android via the default-phone-app role; number forwarding for
 
 ## License
 
-To be chosen before the first deploy: Apache-2.0 is recommended.
+[Apache License 2.0](LICENSE). Copyright 2026 Jarmar Ledesma and ElderGuard contributors.
 
 ---
 
