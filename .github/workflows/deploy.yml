@@ -3,6 +3,8 @@ name: deploy
 # Deploys elderguard-api to Cloud Run. Auth is Workload Identity Federation: no JSON keys.
 # Repository variables (set once from the bootstrap.sh output):
 #   GCP_PROJECT, GCP_REGION, WIF_PROVIDER, DEPLOY_SA
+#   TWILIO_ACCOUNT_SID, TWILIO_GUARDIAN_NUMBER (not secrets, but kept out of the public spec;
+#   GitHub push protection rejects a committed account SID)
 # Trigger: push a tag like v0.3.0, or run manually with an optional ref.
 
 on:
@@ -34,12 +36,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Refuse to deploy with placeholder values still in the spec
+      - name: Require the Twilio repository variables
+        env:
+          TWILIO_ACCOUNT_SID: ${{ vars.TWILIO_ACCOUNT_SID }}
+          TWILIO_GUARDIAN_NUMBER: ${{ vars.TWILIO_GUARDIAN_NUMBER }}
         run: |
-          if grep -q "REPLACE_WITH_TWILIO_ACCOUNT_SID\|+10000000000" infra/cloudrun.yaml; then
-            echo "infra/cloudrun.yaml still has placeholders for TWILIO_ACCOUNT_SID / TWILIO_GUARDIAN_NUMBER" >&2
-            exit 1
-          fi
+          [[ "$TWILIO_ACCOUNT_SID" =~ ^AC[0-9a-f]{32}$ ]] || { echo "set the TWILIO_ACCOUNT_SID repository variable" >&2; exit 1; }
+          [[ "$TWILIO_GUARDIAN_NUMBER" =~ ^\+1[0-9]{10}$ ]] || { echo "set TWILIO_GUARDIAN_NUMBER in E.164, e.g. +15551234567" >&2; exit 1; }
 
       - id: auth
         uses: google-github-actions/auth@v2
@@ -68,6 +71,8 @@ jobs:
           echo "CURRENT_REV=${CURRENT_REV}" >> "$GITHUB_ENV"
           sed -e "s#REGION-docker.pkg.dev/PROJECT/elderguard/api:TAG#${IMAGE}:${{ steps.build.outputs.tag }}#g" \
               -e "s#PROJECT#${{ vars.GCP_PROJECT }}#g" \
+              -e "s#REPLACE_WITH_TWILIO_ACCOUNT_SID#${{ vars.TWILIO_ACCOUNT_SID }}#g" \
+              -e "s#\"+10000000000\"#\"${{ vars.TWILIO_GUARDIAN_NUMBER }}\"#g" \
               infra/cloudrun.yaml > /tmp/service.yaml
           python3 - "$CURRENT_REV" <<'PY'
           import re, sys

@@ -52,7 +52,7 @@ Nothing in this directory contains or reads a secret value.
    gcloud secrets versions add SENTRY_DSN --data-file=/path/to/dsn.txt
    ```
 
-5. Edit `cloudrun.yaml`: replace `REPLACE_WITH_TWILIO_ACCOUNT_SID` and `+10000000000`. The account SID and the Guardian Line number are not secrets. `deploy.yml` refuses to run while placeholders remain.
+5. Set two more repository variables: `TWILIO_ACCOUNT_SID` and `TWILIO_GUARDIAN_NUMBER` (E.164). `deploy.yml` substitutes them into the placeholders in `cloudrun.yaml` at deploy time and refuses to run without them. Leave the placeholders in the file; GitHub push protection rejects a committed account SID.
 6. Set the GitHub repository variables the script printed (`GCP_PROJECT`, `GCP_REGION`, `WIF_PROVIDER`, `DEPLOY_SA`) and create a `production` environment.
 7. Push a `v*` tag or run the `deploy` workflow. It builds, pushes, applies the spec, sends a canary share to the new revision, smoke-tests `/ready`, then promotes to 100%.
 8. **Allow unauthenticated invocation of the service.** Twilio and the app reach Cloud Run with no Google identity; every route does its own auth (Twilio signature, stream token, Firebase ID token, scheduler OIDC). This binding is deliberately not automated so it is a conscious step:
