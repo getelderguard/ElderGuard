@@ -351,8 +351,8 @@ ensure_exclusion() {
   fi
 }
 ensure_exclusion "elderguard-low-severity" \
-  "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${SERVICE}\" AND severity<INFO" \
-  "Drop DEBUG from the API in prod"
+  "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"${SERVICE}\" AND severity=DEBUG" \
+  "Drop DEBUG from the API in prod (not severity<INFO which also drops unlabeled lines such as crash tracebacks)"
 ensure_exclusion "elderguard-pii-fields" \
   "resource.type=\"cloud_run_revision\" AND (jsonPayload.transcript:* OR jsonPayload.window_text:* OR jsonPayload.partial_text:* OR jsonPayload.from_number:* OR jsonPayload.phone:* OR jsonPayload.From:*)" \
   "Belt and braces: never store transcript or phone fields even if redaction regresses"

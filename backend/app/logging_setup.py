@@ -27,6 +27,12 @@ def _redact(_logger, _method, event_dict):
     return event_dict
 
 
+def _severity(_logger, _method, event_dict):
+    """Cloud Logging reads the `severity` key; without it every line is stored as DEFAULT."""
+    event_dict["severity"] = str(event_dict.get("level", "info")).upper()
+    return event_dict
+
+
 def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
     logging.basicConfig(level=level.upper(), format="%(message)s")
     renderer = (
@@ -38,6 +44,7 @@ def configure_logging(level: str = "INFO", json_output: bool = False) -> None:
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             _redact,
+            _severity,
             renderer,
         ],
         wrapper_class=structlog.make_filtering_bound_logger(logging.getLevelName(level.upper())),
