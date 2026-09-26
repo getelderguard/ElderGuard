@@ -114,10 +114,13 @@ spec:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 2
-            periodSeconds: 2
-            timeoutSeconds: 1  # Cloud Run requires timeout < period; /health has no dependencies
-            failureThreshold: 15
+            # Poll every second: Cloud Run holds requests until this passes, so a 2 s grid added up
+            # to 2 s to every cold start. Uvicorn binds only after lifespan startup, so the first
+            # 200 means ready. Timeout may not exceed the period; /health has no dependencies.
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 30
           livenessProbe:
             httpGet:
               path: /health

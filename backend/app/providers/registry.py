@@ -83,7 +83,8 @@ class ProviderRegistry:
         return entry.factory(self.settings, route)
 
 
-PROVIDER_MODULES = ("app.providers.anthropic_scorer", "app.providers.deepgram_transcriber")
+# Transcriber first: it is needed as soon as audio arrives, the scorer a few seconds later.
+PROVIDER_MODULES = ("app.providers.deepgram_transcriber", "app.providers.anthropic_scorer")
 
 
 def preload_providers() -> int:

@@ -95,8 +95,10 @@ class LiveCall:
         try:
             t_route = registry.choose("transcriber")
             s_chain = registry.chain("scorer")
-            self.transcriber = registry.build("transcriber", t_route)
-            scorers = [registry.build("scorer", r) for r in s_chain]
+            # Off the event loop: right after a cold start the provider SDKs may still be importing
+            # (registry.preload_providers), and a blocked loop would stall every live call.
+            self.transcriber = await asyncio.to_thread(registry.build, "transcriber", t_route)
+            scorers = [await asyncio.to_thread(registry.build, "scorer", r) for r in s_chain]
             await self.transcriber.start(fmt)
         except ProviderError as e:
             log.error("media_provider_start_failed", error=str(e), session_id=session_id)
