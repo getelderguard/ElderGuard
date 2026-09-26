@@ -4,3 +4,5 @@ export { Shield } from './Shield';
 export { Body, Eyebrow, Headline, Signature, Subhead, Wordmark } from './typography';
 export { GhostLink, PrimaryButton, SecondaryButton } from './buttons';
 export { BrassDial } from './BrassDial';
+export { Page } from './Page';
+export { TextField } from './TextField';

@@ -1,5 +1,5 @@
-// Where request credentials come from. Firebase phone auth plugs in here (setAuthProvider);
-// until then, dev builds use the backend's dev-auth headers.
+// Where request credentials come from. The signed-in Firebase user plugs in here
+// (setAuthProvider, from src/auth/AuthGate); dev builds can use the backend's dev-auth headers.
 export type AuthProvider = () => Promise<Record<string, string>>;
 
 let provider: AuthProvider | null = null;
@@ -15,6 +15,11 @@ function devProvider(): AuthProvider | null {
   if (!uid) return null;
   const phone = process.env.EXPO_PUBLIC_DEV_PHONE ?? '';
   return async () => ({ 'X-Dev-Uid': uid, ...(phone ? { 'X-Dev-Phone': phone } : {}) });
+}
+
+// True when a dev build talks to a local backend with dev headers instead of Firebase.
+export function devAuthActive(): boolean {
+  return devProvider() !== null;
 }
 
 export async function authHeaders(): Promise<Record<string, string>> {

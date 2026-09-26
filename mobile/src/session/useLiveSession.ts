@@ -20,7 +20,7 @@ export function useLiveSession(sessionId: string | undefined): LiveSession {
   const [error, setError] = useState<Error | null>(null);
   const [now, setNow] = useState(() => Date.now());
   // Measured on this phone's clock, so server clock skew cannot hide staleness.
-  const lastChange = useRef(Date.now());
+  const [lastChange, setLastChange] = useState(() => Date.now());
   const lastUpdatedAt = useRef<number | null>(null);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function useLiveSession(sessionId: string | undefined): LiveSession {
         if (cancelled) return;
         if (s.updated_at !== lastUpdatedAt.current) {
           lastUpdatedAt.current = s.updated_at;
-          lastChange.current = Date.now();
+          setLastChange(Date.now());
         }
         setSession(s);
         setError(null);
@@ -57,6 +57,6 @@ export function useLiveSession(sessionId: string | undefined): LiveSession {
   }, []);
 
   const active = session?.state === 'live' || session?.state === 'reconnecting';
-  const stale = active && now - lastChange.current > STALE_MS;
+  const stale = active && now - lastChange > STALE_MS;
   return { session, stale, error };
 }
