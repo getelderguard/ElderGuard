@@ -70,7 +70,7 @@ jobs:
             --project="${{ vars.GCP_PROJECT }}" --format='value(status.traffic[0].revisionName)' 2>/dev/null || true)"
           echo "CURRENT_REV=${CURRENT_REV}" >> "$GITHUB_ENV"
           sed -e "s#REGION-docker.pkg.dev/PROJECT/elderguard/api:TAG#${IMAGE}:${{ steps.build.outputs.tag }}#g" \
-              -e "s#PROJECT#${{ vars.GCP_PROJECT }}#g" \
+              -e "s#\bPROJECT\b#${{ vars.GCP_PROJECT }}#g" \
               -e "s#REPLACE_WITH_TWILIO_ACCOUNT_SID#${{ vars.TWILIO_ACCOUNT_SID }}#g" \
               -e "s#\"+10000000000\"#\"${{ vars.TWILIO_GUARDIAN_NUMBER }}\"#g" \
               infra/cloudrun.yaml > /tmp/service.yaml

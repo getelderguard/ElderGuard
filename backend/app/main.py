@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from contextlib import asynccontextmanager
 
 import structlog
@@ -62,6 +63,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        try:
+            await _startup_checks()
+        except Exception as e:
+            # One short line first: the container exits right after, and Cloud Run can drop the
+            # tail of a long traceback. Error text names settings, never secret values.
+            log.error("startup_failed", error_type=type(e).__name__, error=str(e)[:500])
+            sys.stdout.flush()
+            sys.stderr.flush()
+            raise
+        yield
+
+    async def _startup_checks() -> None:
         problems = settings.startup_problems()
         if problems:
             if settings.is_prod:
@@ -80,7 +93,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             scorers=[r.provider for r in registry.available_routes("scorer")],
             transcribers=[r.provider for r in registry.available_routes("transcriber")],
         )
-        yield
 
     app = FastAPI(
         title="ElderGuard API",
