@@ -95,20 +95,37 @@ jobs:
           NEW_REV="$(gcloud run services describe "$SERVICE" --region="${{ vars.GCP_REGION }}" \
             --project="${{ vars.GCP_PROJECT }}" --format='value(status.latestCreatedRevisionName)')"
           echo "NEW_REV=${NEW_REV}" >> "$GITHUB_ENV"
+          # A stable tag URL reaches the new revision directly, whatever its traffic share.
+          gcloud run services update-traffic "$SERVICE" --region="${{ vars.GCP_REGION }}" \
+            --project="${{ vars.GCP_PROJECT }}" --update-tags="canary=${NEW_REV}" --quiet
           if [[ -n "$CURRENT_REV" && "$CURRENT_REV" != "$NEW_REV" ]]; then
             gcloud run services update-traffic "$SERVICE" --region="${{ vars.GCP_REGION }}" \
               --project="${{ vars.GCP_PROJECT }}" \
               --to-revisions="${NEW_REV}=${{ github.event.inputs.canary_percent || '10' }},${CURRENT_REV}=$((100 - ${{ github.event.inputs.canary_percent || '10' }}))"
           fi
 
+      - id: idtoken
+        name: ID token for the smoke test (audience set in cloudrun.yaml)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SA }}
+          token_format: id_token
+          id_token_audience: elderguard-api
+          id_token_include_email: true
+          create_credentials_file: false
+
       - name: Smoke test the canary revision directly
+        env:
+          TOKEN: ${{ steps.idtoken.outputs.id_token }}
         run: |
-          URL="$(gcloud run revisions describe "$NEW_REV" --region="${{ vars.GCP_REGION }}" \
-            --project="${{ vars.GCP_PROJECT }}" --format='value(status.url)')"
-          # Revision URLs need an identity token unless the service allows unauthenticated; use one.
-          TOKEN="$(gcloud auth print-identity-token)"
+          URL="$(gcloud run services describe "$SERVICE" --region="${{ vars.GCP_REGION }}" \
+            --project="${{ vars.GCP_PROJECT }}" --format=json \
+            | python3 -c 'import json,sys; print(next(t["url"] for t in json.load(sys.stdin)["status"]["traffic"] if t.get("tag") == "canary"))')"
+          echo "canary URL: ${URL}"
+          : > /tmp/ready.json
           for i in 1 2 3 4 5 6; do
-            if curl -fsS -H "Authorization: Bearer ${TOKEN}" "${URL}/ready" | tee /tmp/ready.json; then break; fi
+            if curl -fsS -H "Authorization: Bearer ${TOKEN}" "${URL}/ready" -o /tmp/ready.json; then break; fi
             sleep 5
           done
           python3 - <<'PY'

@@ -11,6 +11,9 @@ metadata:
   annotations:
     run.googleapis.com/ingress: all
     run.googleapis.com/launch-stage: GA
+    # Lets the deploy smoke test call the tagged canary URL with an ID token minted for this
+    # audience (a revision tag URL is not the service URL, so the default audience would not match).
+    run.googleapis.com/custom-audiences: '["elderguard-api"]'
 spec:
   template:
     metadata:
