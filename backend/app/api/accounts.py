@@ -41,6 +41,10 @@ def _clean_watch_list(items: list[str]) -> list[str]:
 async def enroll(request: Request, body: EnrollBody, user: AuthUser = Depends(require_user)):
     if not user.phone:
         raise HTTPException(400, "sign in with a phone number first")
+    if not request.app.state.settings.may_enroll(user.phone):
+        # Pre-launch: only invited numbers reach the paid call path. Counsel reviews first.
+        log.info("enroll_not_invited")
+        raise HTTPException(403, "enrolment is invite-only for now")
     if body.consent_version != CONSENT_VERSION:
         raise HTTPException(409, f"consent version {CONSENT_VERSION} required")
     service = request.app.state.account_service

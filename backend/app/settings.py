@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     fake_providers: str = ""
     # Comma-separated E.164 numbers that count as enrolled accounts before Firestore exists.
     dev_allowed_phones: str = ""
+    # Comma-separated E.164 numbers allowed to enrol as seniors. In prod an empty list means
+    # enrolment is closed; elsewhere an empty list means open (local dev and tests).
+    enroll_allowed_phones: str = ""
 
     providers_config_path: Path = _CONFIG_DIR / "providers.default.yaml"
     flags_config_path: Path = _CONFIG_DIR / "flags.default.yaml"
@@ -70,6 +73,16 @@ class Settings(BaseSettings):
     @cached_property
     def dev_allowed_phone_list(self) -> list[str]:
         return [p.strip() for p in self.dev_allowed_phones.split(",") if p.strip()]
+
+    @cached_property
+    def enroll_allowed_phone_list(self) -> list[str]:
+        return [p.strip() for p in self.enroll_allowed_phones.split(",") if p.strip()]
+
+    def may_enroll(self, phone_e164: str) -> bool:
+        allowed = self.enroll_allowed_phone_list
+        if not allowed:
+            return not self.is_prod
+        return phone_e164 in allowed
 
     @property
     def fakes_enabled(self) -> bool:

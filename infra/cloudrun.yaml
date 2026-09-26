@@ -76,6 +76,10 @@ spec:
               value: ""
             - name: DEV_ALLOWED_PHONES
               value: ""
+            # Invite list for senior enrolment. deploy.yml fills it from the ENROLL_ALLOWED_PHONES
+            # repository variable; unset means enrolment is closed.
+            - name: ENROLL_ALLOWED_PHONES
+              value: "REPLACE_WITH_ENROLL_ALLOWED_PHONES"
             - name: SCORING_SPEED_FACTOR
               value: "1.0"
             - name: ANTHROPIC_API_KEY

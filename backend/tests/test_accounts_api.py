@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import time
 
+from fastapi.testclient import TestClient
+
+from app.main import create_app
 from app.sessions.models import CONSENT_VERSION, GUARDIAN_COOL_OFF_S
-from tests.conftest import GUARDIAN_HEADERS, SENIOR_HEADERS, STAFF_HEADERS
+from tests.conftest import GUARDIAN_HEADERS, SENIOR_HEADERS, STAFF_HEADERS, make_settings
 
 NEW_SENIOR = {"X-Dev-Uid": "uid-new", "X-Dev-Phone": "+14155550123"}
 NEW_GUARDIAN = {"X-Dev-Uid": "uid-kid", "X-Dev-Phone": "+14155550321"}
@@ -35,6 +38,23 @@ def test_enroll_requires_phone_and_current_consent(client):
         "/v1/accounts/me", json={**ENROLL, "consent_version": "2000-01-01"}, headers=NEW_SENIOR
     )
     assert r.status_code == 409
+
+
+def test_enroll_is_invite_only_when_a_list_is_set():
+    app = create_app(make_settings(enroll_allowed_phones="+14155550999"))
+    with TestClient(app) as c:
+        r = c.post("/v1/accounts/me", json=ENROLL, headers=NEW_SENIOR)
+        assert r.status_code == 403
+        invited = {"X-Dev-Uid": "uid-invited", "X-Dev-Phone": "+14155550999"}
+        assert c.post("/v1/accounts/me", json=ENROLL, headers=invited).status_code == 201
+
+
+def test_prod_enrolment_is_closed_by_default():
+    assert not make_settings(env="prod").may_enroll("+14155550123")
+    assert make_settings(env="prod", enroll_allowed_phones="+14155550123").may_enroll(
+        "+14155550123"
+    )
+    assert make_settings().may_enroll("+14155550123")  # dev and tests stay open
 
 
 def test_enroll_twice_is_conflict(client):
