@@ -110,7 +110,7 @@ spec:
               port: 8080
             initialDelaySeconds: 2
             periodSeconds: 2
-            timeoutSeconds: 3
+            timeoutSeconds: 1  # Cloud Run requires timeout < period; /health has no dependencies
             failureThreshold: 15
           livenessProbe:
             httpGet:
