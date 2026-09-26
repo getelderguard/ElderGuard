@@ -1,0 +1,2 @@
+# Placeholder text in .env.example ("replace-with-64-hex-chars"), not a secret.
+d228700189bca78588ca74943ae1988711b18de3:.env.example:generic-api-key:25
