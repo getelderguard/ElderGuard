@@ -1,13 +1,13 @@
 {
-  "displayName": "ElderGuard: Cloud Run startup latency p95 over 8 s",
+  "displayName": "ElderGuard: Cloud Run startup latency p95 over 12 s",
   "combiner": "OR",
   "conditions": [
     {
-      "displayName": "startup p95 > 8000 ms",
+      "displayName": "startup p95 > 12000 ms",
       "conditionThreshold": {
         "filter": "metric.type = \"run.googleapis.com/container/startup_latencies\" AND resource.type = \"cloud_run_revision\" AND resource.labels.service_name = \"__SERVICE__\"",
         "comparison": "COMPARISON_GT",
-        "thresholdValue": 8000,
+        "thresholdValue": 12000,
         "duration": "300s",
         "aggregations": [
           {
@@ -26,7 +26,7 @@
   ],
   "enabled": true,
   "documentation": {
-    "content": "Cold starts are approaching Twilio's 15 s webhook timeout. Check min-instances=1 and startup CPU boost in cloudrun.yaml.",
+    "content": "A cold start is nearing Twilio's 15 s webhook timeout. Fresh-host boots measure about 10 s, mostly Python library imports (see the startup_timing log). Startup CPU boost is already on. Before real users, set minScale to 1 in cloudrun.yaml so calls rarely land on a booting instance.",
     "mimeType": "text/markdown"
   },
   "alertStrategy": {

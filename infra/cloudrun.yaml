@@ -24,8 +24,8 @@ spec:
         run.googleapis.com/cpu-throttling: "true"
         run.googleapis.com/startup-cpu-boost: "true"
         # Twilio's webhook timeout is 15 s, so a cold start must stay well under it (startup-latency
-        # alert at 8 s). The every-minute /internal/sweep keeps this instance warm, and with
-        # request-based billing an idle warm instance costs nothing. Set 1 when the first real
+        # alert at 12 s; fresh-host boots measure ~10 s). The every-minute /internal/sweep keeps this
+        # instance warm, and with request-based billing an idle warm instance costs nothing. Set 1 when the first real
         # senior depends on the line: that bills idle time but survives platform restarts.
         autoscaling.knative.dev/minScale: "0"
         autoscaling.knative.dev/maxScale: "1"
