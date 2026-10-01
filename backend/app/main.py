@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from app import IMPORT_T0
-from app.api import accounts, admin, deps, devices, guardians, health, internal, sessions
+from app.api import accounts, admin, deps, devices, guardians, health, internal, sessions, show
 from app.logging_setup import configure_logging
 from app.notify.push import FcmPushSender, LogPushSender, NotifyService
 from app.persistence.config_service import ConfigService, StaticConfigSource
@@ -185,6 +185,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         guardians.router,
         devices.router,
         sessions.router,
+        show.router,
         internal.router,
         admin.router,
     ):

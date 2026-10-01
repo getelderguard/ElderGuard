@@ -212,6 +212,9 @@ class FakeMessageAnalyzer:
             raise ProviderUnavailable("fake analyzer configured to fail")
         text = " ".join([inp.text, answers.who_is_it_from, answers.what_do_they_want])
         score, flags = fake_score_text(text)
+        if inp.image_b64 and not flags:
+            # The fake cannot read pictures. Like the real rubric, unreadable means middling.
+            score = 4
         return ScoreResult(
             score=score,
             reasoning="Fake analyzer",

@@ -28,7 +28,7 @@ Outside of calls, **Show Me** lets the senior photograph, paste, or describe a s
 | GCP deploy, Firebase auth, Firestore, alerts, cost guardrails | Deployed (M1) |
 | Expo mobile app (iOS and Android) | M2 in progress: scaffold, design system, home screen |
 | Spoken takeover in the guardian's voice | M3 |
-| Show Me with real inputs | M4 |
+| Show Me with real inputs: paste text or add a screenshot or photo, from the second tab | M4 built (backend endpoint, Anthropic analyzer, mobile tab). Not yet tried with a real key or on a device. |
 | Store submission, getelderguard.org, fork guide | M5 |
 
 The original 19-screen web click-through lives in [prototype/](prototype/) as a visual reference until the mobile app covers every screen.

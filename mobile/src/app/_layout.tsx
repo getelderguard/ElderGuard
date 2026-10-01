@@ -51,7 +51,7 @@ function Routes() {
   return (
     <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: EG_TOKENS.sand } }}>
       <Stack.Protected guard={phase === 'ready'}>
-        <Stack.Screen name="(app)/index" />
+        <Stack.Screen name="(app)/(tabs)" />
         <Stack.Screen name="(app)/call/[sessionId]" />
       </Stack.Protected>
       <Stack.Protected guard={phase === 'signed_out'}>
