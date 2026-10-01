@@ -65,7 +65,7 @@ Deny-by-default rules in `infra/firestore.rules`. Clients can read only what is 
 | `usage_monthly/{YYYY-MM}` | `{total_cost_usd, by_provider, by_capability, sessions, minutes, active_accounts, computed_at}` | none (served by `/admin/usage`) | none |
 | `config/providers`, `config/flags` | Overlay documents merged over `backend/config/*.default.yaml` | none | none |
 | `config_history/{auto}` | `{doc, before, after, actor, at}` | none | none |
-| `show_checks/{auto}` | M4. Metadata only. | none | none |
+| `show_checks/{auto}` | Not used. Show Me stores nothing; cost is tracked in `usage_events` with `capability = message_analyzer`. | none | none |
 
 Phone numbers are never stored in the clear. `phone_last4` is the only human-readable fragment.
 
@@ -106,6 +106,7 @@ The emulator does not enforce composite indexes, so a missing one only shows up 
 | `GET /v1/sessions/{id}` | user (senior or active guardian) | 60/min | `Session.public_view()`. |
 | `GET /v1/sessions` | user | 30/min | Recent sessions for the caller's account. |
 | `POST /v1/sessions/{id}/feedback` | user | 10/min | Body: `false_alarm: bool`, optional `note` from a fixed enum. |
+| `POST /v1/show/check` | user (enrolled senior) | 10/min, 60/hour | Body: `text` (max 4,000 chars), `image_b64` (max 3.5 MB decoded; type sniffed from the bytes: jpeg, png, webp, gif), optional `who_is_it_from` and `what_do_they_want` (max 200 chars). Returns only `verdict` (`no_red_flags`, `be_careful`, `dont_reply`) and `flags`; model reasoning never leaves the server. 503 when the `show_me` flag is off, the kill switch is on, or every provider fails. Stores nothing. |
 | `POST /internal/sweep` | Cloud Scheduler OIDC | none | Expires stale intents and abandons sessions past `max_session_minutes`. |
 | `POST /internal/rollup` | Cloud Scheduler OIDC | none | Writes `usage_monthly` for the current and previous month. |
 | `GET /admin/usage` | user with `staff` claim | 30/min | Month-to-date and last-month rollups. |

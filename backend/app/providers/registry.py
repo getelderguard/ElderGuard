@@ -84,7 +84,11 @@ class ProviderRegistry:
 
 
 # Transcriber first: it is needed as soon as audio arrives, the scorer a few seconds later.
-PROVIDER_MODULES = ("app.providers.deepgram_transcriber", "app.providers.anthropic_scorer")
+PROVIDER_MODULES = (
+    "app.providers.deepgram_transcriber",
+    "app.providers.anthropic_scorer",
+    "app.providers.anthropic_analyzer",
+)
 
 
 def preload_providers() -> int:
@@ -116,6 +120,16 @@ def build_registry(settings: Settings, config: ProviderConfig | ConfigGetter) ->
             max_tokens=int(r.params.get("max_tokens", 400)),
         )
 
+    def anthropic_analyzer(s: Settings, r: Route) -> Any:
+        from app.providers.anthropic_analyzer import AnthropicMessageAnalyzer
+
+        return AnthropicMessageAnalyzer(
+            api_key=s.anthropic_api_key.get_secret_value(),
+            model=r.model or "claude-sonnet-5",
+            effort=str(r.params.get("effort", "low")),
+            max_tokens=int(r.params.get("max_tokens", 400)),
+        )
+
     def deepgram_transcriber(s: Settings, r: Route) -> Any:
         from app.providers.deepgram_transcriber import DeepgramTranscriber
 
@@ -129,6 +143,12 @@ def build_registry(settings: Settings, config: ProviderConfig | ConfigGetter) ->
         "scorer",
         "anthropic",
         anthropic_scorer,
+        is_configured=lambda s: s.anthropic_api_key is not None,
+    )
+    registry.register(
+        "message_analyzer",
+        "anthropic",
+        anthropic_analyzer,
         is_configured=lambda s: s.anthropic_api_key is not None,
     )
     registry.register(

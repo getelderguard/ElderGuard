@@ -42,7 +42,8 @@ export default function Home() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: EG_TOKENS.sand }}>
+    // The tab bar already sits above the bottom inset.
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: EG_TOKENS.sand }}>
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, gap: 28, justifyContent: 'space-between' }}>
         <Wordmark />
         <View style={{ gap: 16, alignItems: 'center' }}>
@@ -63,7 +64,10 @@ export default function Home() {
           >
             {busy ? 'Starting…' : 'Check this call'}
           </PrimaryButton>
-          <SecondaryButton accessibilityHint="Check a text, letter, or email you are unsure about">
+          <SecondaryButton
+            onPress={() => router.navigate('/show')}
+            accessibilityHint="Opens the Show me tab, to check a text, letter, email, or picture you are unsure about"
+          >
             Show me something odd
           </SecondaryButton>
         </View>

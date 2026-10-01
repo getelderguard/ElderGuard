@@ -63,6 +63,16 @@ const config: ExpoConfig = {
         imageWidth: 76,
       },
     ],
+    // Show me: the senior picks a screenshot or photographs a letter. The picture goes to the
+    // backend to be checked and is never stored. No microphone is used.
+    [
+      'expo-image-picker',
+      {
+        photosPermission: 'ElderGuard looks at the screenshot you choose, only to tell you if it looks like a scam.',
+        cameraPermission: 'ElderGuard uses the camera to read a letter or message you want checked.',
+        microphonePermission: false,
+      },
+    ],
     // React Native Firebase needs static frameworks on iOS.
     ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
     ...firebasePlugins,
